@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {FHE, ebool, euint64, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+
+/// @notice ERC-20 shaped token whose balances and supply are encrypted ciphertext handles.
+contract EncryptedToken {
+    event Transfer(address indexed from, address indexed to, bytes32 handle);
+    event Mint(address indexed to, bytes32 handle);
+
+    error NotOwner();
+    error ZeroAddress();
+
+    string public name;
+    string public symbol;
+    uint8 public constant decimals = 6;
+    address public immutable owner;
+
+    mapping(address => euint64) private _balances;
+    euint64 private _totalSupply;
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotOwner();
+        _;
+    }
+
+    constructor(string memory tokenName, string memory tokenSymbol) {
+        owner = msg.sender;
+        name = tokenName;
+        symbol = tokenSymbol;
+        _totalSupply = FHE.asEuint64(0);
+        FHE.allowThis(_totalSupply);
+    }
+
+    function mint(address to, externalEuint64[] calldata values, bytes calldata signature) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+
+        euint64 amount = FHE.asEuint64s(values, signature)[0];
+
+        euint64 balance = FHE.add(_balanceOf(to), amount);
+        _balances[to] = balance;
+        _totalSupply = FHE.add(_totalSupply, amount);
+
+        FHE.allowThis(balance);
+        FHE.allowThis(_totalSupply);
+        FHE.allow(balance, to);
+
+        emit Mint(to, euint64.unwrap(balance));
+    }
+
+    /// @notice Transfers an encrypted amount. An amount above the sender's balance moves nothing.
+    function transfer(address to, externalEuint64[] calldata values, bytes calldata signature) external {
+        if (to == address(0)) revert ZeroAddress();
+
+        euint64 amount = FHE.asEuint64s(values, signature)[0];
+        euint64 fromBalance = _balanceOf(msg.sender);
+
+        ebool canSend = FHE.gte(fromBalance, amount);
+        euint64 sent = FHE.select(canSend, amount, FHE.asEuint64(0));
+
+        euint64 newFrom = FHE.sub(fromBalance, sent);
+        euint64 newTo = FHE.add(_balanceOf(to), sent);
+
+        _balances[msg.sender] = newFrom;
+        _balances[to] = newTo;
+
+        FHE.allowThis(newFrom);
+        FHE.allowThis(newTo);
+        FHE.allowSender(newFrom);
+        FHE.allow(newTo, to);
+
+        emit Transfer(msg.sender, to, euint64.unwrap(sent));
+    }
+
+    function balanceOf(address account) external view returns (euint64) {
+        return _balances[account];
+    }
+
+    function totalSupply() external view returns (euint64) {
+        return _totalSupply;
+    }
+
+    function _balanceOf(address account) private returns (euint64) {
+        euint64 balance = _balances[account];
+        if (euint64.unwrap(balance) == bytes32(0)) {
+            balance = FHE.asEuint64(0);
+            FHE.allowThis(balance);
+        }
+        return balance;
+    }
+}

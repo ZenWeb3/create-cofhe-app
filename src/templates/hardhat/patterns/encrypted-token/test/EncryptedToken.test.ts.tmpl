@@ -1,0 +1,74 @@
+import hre from 'hardhat'
+import { expect } from 'chai'
+import { Encryptable, FheTypes, type CofheClient } from '@cofhe/sdk'
+import type { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
+
+describe('EncryptedToken', () => {
+  let owner: HardhatEthersSigner
+  let alice: HardhatEthersSigner
+  let bob: HardhatEthersSigner
+  let ownerClient: CofheClient
+  let aliceClient: CofheClient
+  let bobClient: CofheClient
+
+  before(async () => {
+    ;[owner, alice, bob] = await hre.ethers.getSigners()
+    ownerClient = await hre.cofhe.createClientWithBatteries(owner)
+    aliceClient = await hre.cofhe.createClientWithBatteries(alice)
+    bobClient = await hre.cofhe.createClientWithBatteries(bob)
+  })
+
+  async function deploy() {
+    const factory = await hre.ethers.getContractFactory('EncryptedToken', owner)
+    const token = await factory.deploy('Encrypted Token', 'eTKN')
+    await token.waitForDeployment()
+    return token
+  }
+
+  async function encrypt(client: CofheClient, token: any, amount: bigint) {
+    return client
+      .encryptInputs([Encryptable.uint64(amount)])
+      .setConsumingContract(await token.getAddress())
+      .execute()
+  }
+
+  async function balance(client: CofheClient, token: any, account: string) {
+    return client.decryptForView(await token.balanceOf(account), FheTypes.Uint64).execute()
+  }
+
+  it('mints an encrypted balance the holder can read', async () => {
+    const token = await deploy()
+    const [handle, signature] = await encrypt(ownerClient, token, 1_000n)
+
+    await (await token.mint(await alice.getAddress(), [handle], signature)).wait()
+
+    expect(await balance(aliceClient, token, await alice.getAddress())).to.equal(1_000n)
+    expect(await ownerClient.decryptForView(await token.totalSupply(), FheTypes.Uint64).execute()).to.equal(1_000n)
+  })
+
+  it('transfers an encrypted amount between accounts', async () => {
+    const token = await deploy()
+
+    const minted = await encrypt(ownerClient, token, 1_000n)
+    await (await token.mint(await alice.getAddress(), [minted[0]], minted[1])).wait()
+
+    const sent = await encrypt(aliceClient, token, 300n)
+    await (await token.connect(alice).transfer(await bob.getAddress(), [sent[0]], sent[1])).wait()
+
+    expect(await balance(aliceClient, token, await alice.getAddress())).to.equal(700n)
+    expect(await balance(bobClient, token, await bob.getAddress())).to.equal(300n)
+  })
+
+  it('moves nothing when the amount exceeds the balance', async () => {
+    const token = await deploy()
+
+    const minted = await encrypt(ownerClient, token, 50n)
+    await (await token.mint(await alice.getAddress(), [minted[0]], minted[1])).wait()
+
+    const sent = await encrypt(aliceClient, token, 999n)
+    await (await token.connect(alice).transfer(await bob.getAddress(), [sent[0]], sent[1])).wait()
+
+    expect(await balance(aliceClient, token, await alice.getAddress())).to.equal(50n)
+    expect(await balance(bobClient, token, await bob.getAddress())).to.equal(0n)
+  })
+})
