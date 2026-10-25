@@ -109,7 +109,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
       'An escrow holding an encrypted deposit. Release moves the encrypted balance to the beneficiary and grants them decryption rights; refund returns it to the depositor.',
     contractName: 'EncryptedEscrow',
     constructorArgs: 'process.env.BENEFICIARY ?? (await deployer.getAddress())',
-    solConstructorArgs: 'vm.envAddress("BENEFICIARY")',
+    solConstructorArgs: 'vm.envOr("BENEFICIARY", vm.addr(deployerKey))',
     fheType: 'Uint64',
     encryptableFn: 'uint64',
     actionLabel: 'Deposit',

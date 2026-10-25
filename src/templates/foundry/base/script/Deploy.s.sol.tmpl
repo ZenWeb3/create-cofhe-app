@@ -6,7 +6,9 @@ import {{{contractName}}} from "../contracts/{{contractName}}.sol";
 
 contract Deploy is Script {
     function run() external {
-        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
+        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+
+        vm.startBroadcast(deployerKey);
         {{contractName}} deployed = new {{contractName}}({{solConstructorArgs}});
         vm.stopBroadcast();
 

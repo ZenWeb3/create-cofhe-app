@@ -8,12 +8,11 @@ coprocessor.
 
 ## Layout
 
-```
-contracts/{{contractName}}.sol    the {{patternLabel}} contract
-test/{{contractName}}.t.sol       mock-network tests
-script/Deploy.s.sol               deployment script
-{{#if frontend}}frontend/                         {{frontendLabel}} dApp
-{{/if}}```
+- `contracts/{{contractName}}.sol` — the {{patternLabel}} contract
+- `test/{{contractName}}.t.sol` — mock-network tests
+- `script/Deploy.s.sol` — deployment script
+{{#if frontend}}- `frontend/` — {{frontendLabel}} dApp
+{{/if}}
 
 ## Getting started
 

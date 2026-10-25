@@ -7,12 +7,11 @@ state lives on-chain as ciphertext handles and all arithmetic runs on the CoFHE 
 
 ## Layout
 
-```
-contracts/{{contractName}}.sol   the {{patternLabel}} contract
-test/{{contractName}}.test.ts    mock-network tests
-scripts/deploy.ts                deployment script
-{{#if frontend}}frontend/                        {{frontendLabel}} dApp
-{{/if}}```
+- `contracts/{{contractName}}.sol` — the {{patternLabel}} contract
+- `test/{{contractName}}.test.ts` — mock-network tests
+- `scripts/deploy.ts` — deployment script
+{{#if frontend}}- `frontend/` — {{frontendLabel}} dApp
+{{/if}}
 
 ## Getting started
 
