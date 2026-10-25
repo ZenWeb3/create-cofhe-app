@@ -38,6 +38,7 @@ contract PrivateVoting {
         for (uint256 i = 0; i < options; i++) {
             voteCounts[i] = FHE.asEuint32(0);
             FHE.allowThis(voteCounts[i]);
+            FHE.allow(voteCounts[i], owner);
         }
     }
 
@@ -55,6 +56,7 @@ contract PrivateVoting {
 
         voteCounts[option] = FHE.add(voteCounts[option], counted);
         FHE.allowThis(voteCounts[option]);
+        FHE.allow(voteCounts[option], owner);
 
         hasVoted[msg.sender] = true;
         emit VoteCast(msg.sender, option);

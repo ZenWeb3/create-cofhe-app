@@ -38,8 +38,14 @@ describe('SealedBidAuction', () => {
     await bid(aliceClient, alice, auction, 100n)
     await bid(bobClient, bob, auction, 250n)
 
-    const highest = await aliceClient.decryptForView(await auction.encryptedHighestBid(), FheTypes.Uint128).execute()
-    expect(highest).to.equal(250n)
+    let error: unknown
+    try {
+      await aliceClient.decryptForView(await auction.encryptedHighestBid(), FheTypes.Uint128).execute()
+    } catch (cause) {
+      error = cause
+    }
+
+    expect(error, 'the running highest bid must not be readable').to.not.equal(undefined)
     expect(await auction.revealed()).to.equal(false)
   })
 

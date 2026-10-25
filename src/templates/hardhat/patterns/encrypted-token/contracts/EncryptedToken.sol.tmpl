@@ -30,6 +30,7 @@ contract EncryptedToken {
         symbol = tokenSymbol;
         _totalSupply = FHE.asEuint64(0);
         FHE.allowThis(_totalSupply);
+        FHE.allow(_totalSupply, owner);
     }
 
     function mint(address to, externalEuint64[] calldata values, bytes calldata signature) external onlyOwner {
@@ -44,6 +45,7 @@ contract EncryptedToken {
         FHE.allowThis(balance);
         FHE.allowThis(_totalSupply);
         FHE.allow(balance, to);
+        FHE.allow(_totalSupply, owner);
 
         emit Mint(to, euint64.unwrap(balance));
     }

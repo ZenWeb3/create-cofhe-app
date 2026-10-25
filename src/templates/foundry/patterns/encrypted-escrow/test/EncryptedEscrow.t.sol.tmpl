@@ -22,13 +22,14 @@ contract EncryptedEscrowTest is CofheTest {
         bob = createCofheClient();
         bob.connect(BOB_PKEY);
 
+        address beneficiary = bob.account();
         vm.prank(alice.account());
-        escrow = new EncryptedEscrow(bob.account());
+        escrow = new EncryptedEscrow(beneficiary);
 
         _deposit(500);
     }
 
-    function test_depositorCanReadEscrowedAmount() public {
+    function test_depositorCanReadEscrowedAmount() public view {
         assertTrue(escrow.funded());
         expectPlaintext(escrow.escrowedAmount(), uint64(500));
     }

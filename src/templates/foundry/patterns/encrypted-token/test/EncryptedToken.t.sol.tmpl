@@ -22,7 +22,8 @@ contract EncryptedTokenTest is CofheTest {
         bob = createCofheClient();
         bob.connect(BOB_PKEY);
 
-        vm.prank(alice.account());
+        address issuer = alice.account();
+        vm.prank(issuer);
         token = new EncryptedToken("Encrypted Token", "eTKN");
     }
 
@@ -50,13 +51,14 @@ contract EncryptedTokenTest is CofheTest {
     }
 
     function test_onlyOwnerCanMint() public {
+        address intruder = bob.account();
         (externalEuint64 handle, bytes memory signature) = bob.createExternalEuint64(1, address(token));
         externalEuint64[] memory handles = new externalEuint64[](1);
         handles[0] = handle;
 
-        vm.prank(bob.account());
+        vm.prank(intruder);
         vm.expectRevert(EncryptedToken.NotOwner.selector);
-        token.mint(bob.account(), handles, signature);
+        token.mint(intruder, handles, signature);
     }
 
     function _mint(address to, uint64 amount) private {
