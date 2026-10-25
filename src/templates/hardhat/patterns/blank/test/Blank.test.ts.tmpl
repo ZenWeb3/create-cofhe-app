@@ -1,0 +1,49 @@
+import hre from 'hardhat'
+import { expect } from 'chai'
+import { Encryptable, FheTypes, type CofheClient } from '@cofhe/sdk'
+import type { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
+
+describe('Blank', () => {
+  let signer: HardhatEthersSigner
+  let client: CofheClient
+
+  before(async () => {
+    ;[signer] = await hre.ethers.getSigners()
+    client = await hre.cofhe.createClientWithBatteries(signer)
+  })
+
+  async function deploy() {
+    const factory = await hre.ethers.getContractFactory('Blank', signer)
+    const blank = await factory.deploy()
+    await blank.waitForDeployment()
+    return blank
+  }
+
+  async function encrypt(blank: any, amount: bigint) {
+    return client
+      .encryptInputs([Encryptable.uint32(amount)])
+      .setConsumingContract(await blank.getAddress())
+      .execute()
+  }
+
+  it('stores an encrypted value', async () => {
+    const blank = await deploy()
+    const [handle, signature] = await encrypt(blank, 42n)
+
+    await (await blank.setValue([handle], signature)).wait()
+
+    expect(await client.decryptForView(await blank.value(), FheTypes.Uint32).execute()).to.equal(42n)
+  })
+
+  it('adds to the stored value without decrypting it', async () => {
+    const blank = await deploy()
+
+    const first = await encrypt(blank, 42n)
+    await (await blank.setValue([first[0]], first[1])).wait()
+
+    const second = await encrypt(blank, 8n)
+    await (await blank.addToValue([second[0]], second[1])).wait()
+
+    expect(await client.decryptForView(await blank.value(), FheTypes.Uint32).execute()).to.equal(50n)
+  })
+})

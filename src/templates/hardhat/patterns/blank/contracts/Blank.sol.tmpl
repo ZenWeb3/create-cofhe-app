@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {FHE, euint32, externalEuint32} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+
+/// @notice Minimal CoFHE contract: stores one encrypted number and adds to it.
+contract Blank {
+    event ValueSet(address indexed account);
+
+    euint32 private _value;
+
+    constructor() {
+        _value = FHE.asEuint32(0);
+        FHE.allowThis(_value);
+    }
+
+    function setValue(externalEuint32[] calldata values, bytes calldata signature) external {
+        _value = FHE.asEuint32s(values, signature)[0];
+
+        FHE.allowThis(_value);
+        FHE.allowSender(_value);
+
+        emit ValueSet(msg.sender);
+    }
+
+    function addToValue(externalEuint32[] calldata values, bytes calldata signature) external {
+        euint32 addend = FHE.asEuint32s(values, signature)[0];
+        _value = FHE.add(_value, addend);
+
+        FHE.allowThis(_value);
+        FHE.allowSender(_value);
+
+        emit ValueSet(msg.sender);
+    }
+
+    function value() external view returns (euint32) {
+        return _value;
+    }
+}
