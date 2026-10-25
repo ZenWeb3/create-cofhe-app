@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {CofheTest} from "@cofhe/foundry-plugin/CofheTest.sol";
+import {CofheClient} from "@cofhe/foundry-plugin/CofheClient.sol";
+import {euint32, externalEuint32} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {PrivateVoting} from "../contracts/PrivateVoting.sol";
+
+contract PrivateVotingTest is CofheTest {
+    uint256 private constant ALICE_PKEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+    uint256 private constant BOB_PKEY = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
+    uint256 private constant OPTIONS = 3;
+
+    CofheClient private alice;
+    CofheClient private bob;
+    PrivateVoting private voting;
+
+    function setUp() public {
+        deployMocks();
+
+        alice = createCofheClient();
+        alice.connect(ALICE_PKEY);
+        bob = createCofheClient();
+        bob.connect(BOB_PKEY);
+
+        voting = new PrivateVoting(OPTIONS);
+    }
+
+    function test_tallyStaysEncrypted() public {
+        _vote(alice, 1, 1);
+        _vote(bob, 1, 1);
+
+        expectPlaintext(voting.encryptedTally(1), uint32(2));
+        assertTrue(voting.hasVoted(alice.account()));
+    }
+
+    function test_discardsWeightOtherThanOne() public {
+        _vote(alice, 0, 1000);
+        expectPlaintext(voting.encryptedTally(0), uint32(0));
+    }
+
+    function test_publishTally() public {
+        _vote(alice, 2, 1);
+        voting.endVoting();
+
+        for (uint256 option = 0; option < OPTIONS; option++) {
+            (, uint256 votes, bytes memory signature) = alice.decryptForTx_withoutACP(
+                euint32.unwrap(voting.encryptedTally(option))
+            );
+            voting.publishTally(option, uint32(votes), signature);
+        }
+
+        assertEq(voting.results(2), 1);
+        assertEq(voting.results(0), 0);
+    }
+
+    function test_rejectsDoubleVote() public {
+        _vote(alice, 0, 1);
+
+        (externalEuint32 handle, bytes memory signature) = alice.createExternalEuint32(1, address(voting));
+        externalEuint32[] memory handles = new externalEuint32[](1);
+        handles[0] = handle;
+
+        vm.prank(alice.account());
+        vm.expectRevert(PrivateVoting.AlreadyVoted.selector);
+        voting.castVote(1, handles, signature);
+    }
+
+    function _vote(CofheClient client, uint256 option, uint32 weight) private {
+        (externalEuint32 handle, bytes memory signature) = client.createExternalEuint32(weight, address(voting));
+        externalEuint32[] memory handles = new externalEuint32[](1);
+        handles[0] = handle;
+
+        vm.prank(client.account());
+        voting.castVote(option, handles, signature);
+    }
+}

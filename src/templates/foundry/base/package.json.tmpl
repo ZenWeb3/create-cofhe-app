@@ -1,0 +1,23 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "forge test -vv",
+    "compile": "forge build",
+    "deploy:sepolia": "forge script script/Deploy.s.sol --rpc-url eth-sepolia --broadcast",
+    "deploy:arb": "forge script script/Deploy.s.sol --rpc-url arb-sepolia --broadcast"{{#if frontend}},
+    "dev": "{{frontendDevCommand}}",
+    "build:frontend": "{{frontendBuildCommand}}"{{/if}}
+  },
+  "dependencies": {
+    "@fhenixprotocol/cofhe-contracts": "^1.0.2",
+    "@openzeppelin/contracts": "^5.4.0",
+    "@openzeppelin/contracts-upgradeable": "^5.4.0"
+  },
+  "devDependencies": {
+    "@cofhe/foundry-plugin": "^1.0.1",
+    "@cofhe/mock-contracts": "^1.0.1",
+    "forge-std": "github:foundry-rs/forge-std#c0f966cb111f621bfb283b2a388bc7be18953bba"
+  }
+}

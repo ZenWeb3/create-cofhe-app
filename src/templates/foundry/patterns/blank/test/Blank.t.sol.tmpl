@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {CofheTest} from "@cofhe/foundry-plugin/CofheTest.sol";
+import {CofheClient} from "@cofhe/foundry-plugin/CofheClient.sol";
+import {externalEuint32} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {Blank} from "../contracts/Blank.sol";
+
+contract BlankTest is CofheTest {
+    uint256 private constant ALICE_PKEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+
+    CofheClient private client;
+    Blank private blank;
+
+    function setUp() public {
+        deployMocks();
+        client = createCofheClient();
+        client.connect(ALICE_PKEY);
+        blank = new Blank();
+    }
+
+    function test_setValue() public {
+        _setValue(42);
+        expectPlaintext(blank.value(), uint32(42));
+    }
+
+    function test_addToValue() public {
+        _setValue(42);
+
+        (externalEuint32 handle, bytes memory signature) = client.createExternalEuint32(8, address(blank));
+        externalEuint32[] memory handles = new externalEuint32[](1);
+        handles[0] = handle;
+
+        vm.prank(client.account());
+        blank.addToValue(handles, signature);
+
+        expectPlaintext(blank.value(), uint32(50));
+    }
+
+    function _setValue(uint32 value) private {
+        (externalEuint32 handle, bytes memory signature) = client.createExternalEuint32(value, address(blank));
+        externalEuint32[] memory handles = new externalEuint32[](1);
+        handles[0] = handle;
+
+        vm.prank(client.account());
+        blank.setValue(handles, signature);
+    }
+}

@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {CofheTest} from "@cofhe/foundry-plugin/CofheTest.sol";
+import {CofheClient} from "@cofhe/foundry-plugin/CofheClient.sol";
+import {externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {EncryptedEscrow} from "../contracts/EncryptedEscrow.sol";
+
+contract EncryptedEscrowTest is CofheTest {
+    uint256 private constant ALICE_PKEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+    uint256 private constant BOB_PKEY = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
+
+    CofheClient private alice;
+    CofheClient private bob;
+    EncryptedEscrow private escrow;
+
+    function setUp() public {
+        deployMocks();
+
+        alice = createCofheClient();
+        alice.connect(ALICE_PKEY);
+        bob = createCofheClient();
+        bob.connect(BOB_PKEY);
+
+        vm.prank(alice.account());
+        escrow = new EncryptedEscrow(bob.account());
+
+        _deposit(500);
+    }
+
+    function test_depositorCanReadEscrowedAmount() public view {
+        assertTrue(escrow.funded());
+        expectPlaintext(escrow.escrowedAmount(), uint64(500));
+    }
+
+    function test_release() public {
+        vm.prank(alice.account());
+        escrow.release();
+
+        assertTrue(escrow.released());
+        expectPlaintext(escrow.beneficiaryBalance(), uint64(500));
+        expectPlaintext(escrow.escrowedAmount(), uint64(0));
+    }
+
+    function test_refund() public {
+        vm.prank(alice.account());
+        escrow.refund();
+
+        assertTrue(escrow.refunded());
+        expectPlaintext(escrow.depositorBalance(), uint64(500));
+    }
+
+    function test_onlyDepositorCanRelease() public {
+        vm.prank(bob.account());
+        vm.expectRevert(EncryptedEscrow.NotDepositor.selector);
+        escrow.release();
+    }
+
+    function test_cannotSettleTwice() public {
+        vm.prank(alice.account());
+        escrow.release();
+
+        vm.prank(alice.account());
+        vm.expectRevert(EncryptedEscrow.AlreadySettled.selector);
+        escrow.refund();
+    }
+
+    function _deposit(uint64 amount) private {
+        (externalEuint64 handle, bytes memory signature) = alice.createExternalEuint64(amount, address(escrow));
+        externalEuint64[] memory handles = new externalEuint64[](1);
+        handles[0] = handle;
+
+        vm.prank(alice.account());
+        escrow.deposit(handles, signature);
+    }
+}

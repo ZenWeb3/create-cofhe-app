@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {CofheTest} from "@cofhe/foundry-plugin/CofheTest.sol";
+import {CofheClient} from "@cofhe/foundry-plugin/CofheClient.sol";
+import {euint128, eaddress, externalEuint128} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {SealedBidAuction} from "../contracts/SealedBidAuction.sol";
+
+contract SealedBidAuctionTest is CofheTest {
+    uint256 private constant ALICE_PKEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+    uint256 private constant BOB_PKEY = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
+
+    CofheClient private alice;
+    CofheClient private bob;
+    SealedBidAuction private auction;
+
+    function setUp() public {
+        deployMocks();
+
+        alice = createCofheClient();
+        alice.connect(ALICE_PKEY);
+        bob = createCofheClient();
+        bob.connect(BOB_PKEY);
+
+        auction = new SealedBidAuction();
+    }
+
+    function test_highestBidWins() public {
+        _bid(alice, 100);
+        _bid(bob, 250);
+
+        expectPlaintext(auction.encryptedHighestBid(), uint128(250));
+        expectPlaintext(auction.encryptedHighestBidder(), bob.account());
+    }
+
+    function test_revealWinner() public {
+        _bid(alice, 100);
+        _bid(bob, 250);
+
+        auction.endAuction();
+        assertTrue(auction.ended());
+
+        (, uint256 bid, bytes memory bidSignature) = alice.decryptForTx_withoutACP(
+            euint128.unwrap(auction.encryptedHighestBid())
+        );
+        (, uint256 bidder, bytes memory bidderSignature) = alice.decryptForTx_withoutACP(
+            eaddress.unwrap(auction.encryptedHighestBidder())
+        );
+
+        auction.revealWinner(uint128(bid), bidSignature, address(uint160(bidder)), bidderSignature);
+
+        assertEq(auction.winningBid(), 250);
+        assertEq(auction.winner(), bob.account());
+    }
+
+    function test_bidRejectedAfterEnd() public {
+        auction.endAuction();
+
+        (externalEuint128 handle, bytes memory signature) = alice.createExternalEuint128(10, address(auction));
+        externalEuint128[] memory handles = new externalEuint128[](1);
+        handles[0] = handle;
+
+        vm.prank(alice.account());
+        vm.expectRevert(SealedBidAuction.AuctionIsOver.selector);
+        auction.placeBid(handles, signature);
+    }
+
+    function _bid(CofheClient client, uint128 amount) private {
+        (externalEuint128 handle, bytes memory signature) = client.createExternalEuint128(amount, address(auction));
+        externalEuint128[] memory handles = new externalEuint128[](1);
+        handles[0] = handle;
+
+        vm.prank(client.account());
+        auction.placeBid(handles, signature);
+    }
+}
