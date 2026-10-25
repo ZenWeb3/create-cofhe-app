@@ -17,6 +17,7 @@ interface PackageJson {
 
 const SDK = '@cofhe/sdk'
 const CONTRACTS = '@fhenixprotocol/cofhe-contracts'
+const FOUNDRY_PLUGIN = '@cofhe/foundry-plugin'
 
 async function readJson<T>(file: string): Promise<T | undefined> {
   try {
@@ -65,11 +66,9 @@ async function checkDependency(cwd: string, pkg: PackageJson, name: string): Pro
   return { ok: false, label: `${name} missing`, fix: `Add ${name} to the project dependencies` }
 }
 
-async function checkHardhatConfig(cwd: string): Promise<Check | undefined> {
-  const configPath = path.join(cwd, 'hardhat.config.ts')
-  if (!(await fs.pathExists(configPath))) return undefined
+async function checkHardhatConfig(cwd: string): Promise<Check> {
+  const source = await fs.readFile(path.join(cwd, 'hardhat.config.ts'), 'utf8')
 
-  const source = await fs.readFile(configPath, 'utf8')
   if (/evmVersion\s*:\s*['"]cancun['"]/.test(source)) {
     return { ok: true, label: "evmVersion: 'cancun' set in hardhat.config.ts" }
   }
@@ -78,6 +77,20 @@ async function checkHardhatConfig(cwd: string): Promise<Check | undefined> {
     ok: false,
     label: "evmVersion not set to 'cancun' in hardhat.config.ts",
     fix: "Add evmVersion: 'cancun' to your solidity settings",
+  }
+}
+
+async function checkFoundryConfig(cwd: string): Promise<Check> {
+  const source = await fs.readFile(path.join(cwd, 'foundry.toml'), 'utf8')
+
+  if (/evm[_-]version\s*=\s*['"]cancun['"]/.test(source)) {
+    return { ok: true, label: "evm_version = 'cancun' set in foundry.toml" }
+  }
+
+  return {
+    ok: false,
+    label: "evm_version not set to 'cancun' in foundry.toml",
+    fix: 'Add evm_version = "cancun" to [profile.default]',
   }
 }
 
@@ -105,7 +118,10 @@ async function checkEnv(cwd: string): Promise<Check> {
   return { ok: true, label: 'PRIVATE_KEY set in .env' }
 }
 
-async function checkTypeScript(cwd: string, pkg: PackageJson): Promise<Check> {
+async function checkTypeScript(cwd: string, pkg: PackageJson): Promise<Check | undefined> {
+  const relevant = (await fs.pathExists(path.join(cwd, 'tsconfig.json'))) || declaredRange(pkg, 'typescript')
+  if (!relevant) return undefined
+
   const installed = (await installedVersion(cwd, 'typescript')) ?? (await commandVersion('tsc', ['--version']))
   const version = installed?.replace(/^Version\s+/, '')
 
@@ -141,14 +157,19 @@ export async function runDoctor(cwd = process.cwd()): Promise<number> {
   const pkg = await readJson<PackageJson>(path.join(cwd, 'package.json'))
 
   if (pkg) {
-    checks.push(await checkDependency(cwd, pkg, SDK))
+    const isHardhat = await fs.pathExists(path.join(cwd, 'hardhat.config.ts'))
+    const isFoundry = await fs.pathExists(path.join(cwd, 'foundry.toml'))
+
+    checks.push(await checkDependency(cwd, pkg, isFoundry && !isHardhat ? FOUNDRY_PLUGIN : SDK))
     checks.push(await checkDependency(cwd, pkg, CONTRACTS))
 
-    const hardhatCheck = await checkHardhatConfig(cwd)
-    if (hardhatCheck) checks.push(hardhatCheck)
+    if (isHardhat) checks.push(await checkHardhatConfig(cwd))
+    if (isFoundry) checks.push(await checkFoundryConfig(cwd))
 
     checks.push(await checkEnv(cwd))
-    checks.push(await checkTypeScript(cwd, pkg))
+
+    const typeScriptCheck = await checkTypeScript(cwd, pkg)
+    if (typeScriptCheck) checks.push(typeScriptCheck)
   }
 
   const issues = checks.filter((check) => !check.ok)

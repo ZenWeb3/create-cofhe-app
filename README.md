@@ -56,9 +56,10 @@ The package also installs a `cofhe` binary.
 
 ### `cofhe doctor`
 
-Checks the environment and the current project: Node and pnpm versions, the `@cofhe/sdk` and
-`@fhenixprotocol/cofhe-contracts` installs, `evmVersion: 'cancun'` in `hardhat.config.ts`, a
-`PRIVATE_KEY` in `.env`, and TypeScript 5 or newer.
+Checks the environment and the current project: Node and pnpm versions, the CoFHE package installs,
+`evmVersion: 'cancun'` in `hardhat.config.ts` (or `evm_version` in `foundry.toml`), a `PRIVATE_KEY`
+in `.env`, and TypeScript 5 or newer. Checks that do not apply to the project are skipped, so it
+reads sensibly in both Hardhat and Foundry projects.
 
 ```
 $ npx cofhe doctor
