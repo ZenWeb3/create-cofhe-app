@@ -12,6 +12,15 @@
     "solidity"
   ],
   "license": "MIT",
+  "author": "ZenWeb3",
+  "homepage": "https://github.com/ZenWeb3/create-cofhe-app#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZenWeb3/create-cofhe-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ZenWeb3/create-cofhe-app/issues"
+  },
   "type": "module",
   "bin": {
     "create-cofhe-app": "./dist/index.js",
