@@ -4,7 +4,7 @@ import pc from 'picocolors'
 import { getVersion, printBanner } from './banner.js'
 import { runDoctor } from './commands/doctor.js'
 import { explain, listConcepts } from './commands/explain.js'
-import { createApp, buildProgram, optionsToDefaults } from './index.js'
+import { buildProgram, createApp, optionsToDefaults } from './create.js'
 
 const program = new Command()
   .name('cofhe')
