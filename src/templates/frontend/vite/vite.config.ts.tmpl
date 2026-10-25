@@ -1,0 +1,21 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  // tfhe loads its own wasm, so it must not be pre-bundled.
+  optimizeDeps: {
+    exclude: ['tfhe'],
+  },
+  worker: {
+    format: 'es',
+  },
+  server: {
+    // Cross-origin isolation lets tfhe prove with a multi-threaded wasm pool.
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    },
+  },
+})
