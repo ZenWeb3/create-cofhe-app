@@ -10,6 +10,7 @@ export interface PatternMeta {
   solConstructorArgs: string
   fheType: 'Uint32' | 'Uint64' | 'Uint128'
   encryptableFn: 'uint32' | 'uint64' | 'uint128'
+  amountLabel: string
   actionLabel: string
   writeFn: string
   writeArgs: string
@@ -40,6 +41,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     solConstructorArgs: '',
     fheType: 'Uint32',
     encryptableFn: 'uint32',
+    amountLabel: 'Value',
     actionLabel: 'Set value',
     writeFn: 'setValue',
     writeArgs: '[[handle], signature]',
@@ -56,6 +58,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     solConstructorArgs: '',
     fheType: 'Uint128',
     encryptableFn: 'uint128',
+    amountLabel: 'Bid amount',
     actionLabel: 'Place bid',
     writeFn: 'placeBid',
     writeArgs: '[[handle], signature]',
@@ -72,6 +75,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     solConstructorArgs: '3',
     fheType: 'Uint32',
     encryptableFn: 'uint32',
+    amountLabel: 'Ballot weight',
     actionLabel: 'Cast vote',
     writeFn: 'castVote',
     writeArgs: '[BigInt(extra), [handle], signature]',
@@ -92,6 +96,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     solConstructorArgs: '"Encrypted Token", "eTKN"',
     fheType: 'Uint64',
     encryptableFn: 'uint64',
+    amountLabel: 'Amount',
     actionLabel: 'Transfer',
     writeFn: 'transfer',
     writeArgs: '[extra as `0x${string}`, [handle], signature]',
@@ -112,6 +117,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     solConstructorArgs: 'vm.envOr("BENEFICIARY", vm.addr(deployerKey))',
     fheType: 'Uint64',
     encryptableFn: 'uint64',
+    amountLabel: 'Deposit amount',
     actionLabel: 'Deposit',
     writeFn: 'deposit',
     writeArgs: '[[handle], signature]',

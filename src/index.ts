@@ -6,7 +6,15 @@ import pc from 'picocolors'
 import { getVersion, printBanner } from './banner.js'
 import { initGitRepo } from './git.js'
 import { installDependencies, isAvailable } from './install.js'
-import { clack as p, runPrompts, type Frontend, type PackageManager, type Pattern, type PromptDefaults, type Toolchain } from './prompts.js'
+import {
+  clack as p,
+  runPrompts,
+  type Frontend,
+  type PackageManager,
+  type Pattern,
+  type PromptDefaults,
+  type Toolchain,
+} from './prompts.js'
 import { assertTargetUsable, scaffold, type ScaffoldStep } from './scaffold.js'
 
 const STEP_LABELS: Record<ScaffoldStep, string> = {
@@ -45,20 +53,20 @@ export async function createApp(defaults: PromptDefaults): Promise<void> {
   for (const step of steps) p.log.success(step)
 
   const pm = options.packageManager
+  let installed = false
 
   if (options.install) {
     if (!(await isAvailable(pm))) {
       p.log.warn(`${pm} is not installed — skipping dependency install`)
-      options.install = false
     } else {
       spinner.start(`Installing dependencies with ${pm}`)
       try {
         await installDependencies(pm, options.targetDir)
         spinner.stop('Dependencies installed')
+        installed = true
       } catch (cause) {
         spinner.stop('Dependency install failed')
         p.log.warn(cause instanceof Error ? cause.message.split('\n')[0] ?? 'Install failed' : 'Install failed')
-        options.install = false
       }
     }
   }
@@ -72,7 +80,7 @@ export async function createApp(defaults: PromptDefaults): Promise<void> {
 
   const pmRun = pm === 'npm' ? 'npm run' : pm
   const next = [`cd ${relative}`]
-  if (!options.install) next.push(`${pm} install`)
+  if (!installed) next.push(`${pm} install`)
   next.push(`${pmRun} test`)
   if (options.frontend !== 'none') next.push(`${pmRun} dev`)
 

@@ -42,6 +42,7 @@ export function buildVars(options: ProjectOptions): Record<string, string> {
     contractAbi: JSON.stringify(meta.abi, null, 2),
     fheType: meta.fheType,
     encryptableFn: meta.encryptableFn,
+    amountLabel: meta.amountLabel,
     actionLabel: meta.actionLabel,
     actionLabelLower: meta.actionLabel.toLowerCase(),
     writeFn: meta.writeFn,
@@ -113,6 +114,17 @@ export async function scaffold(
 ): Promise<string[]> {
   await assertTargetUsable(options.targetDir)
 
+  const preexisting = await fs.pathExists(options.targetDir)
+
+  try {
+    return await write(options, onStep)
+  } catch (cause) {
+    if (!preexisting) await fs.remove(options.targetDir)
+    throw cause
+  }
+}
+
+async function write(options: ProjectOptions, onStep?: (step: ScaffoldStep) => void): Promise<string[]> {
   const vars = buildVars(options)
   const { targetDir, toolchain, pattern, frontend } = options
   const written: string[] = []

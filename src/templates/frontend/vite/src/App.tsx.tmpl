@@ -154,7 +154,7 @@ export default function App() {
         <h2 className="text-sm font-medium text-neutral-300">{contractName}.{{writeFn}}</h2>
 
         <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-neutral-400">Amount</span>
+          <span className="text-neutral-400">{{amountLabel}}</span>
           <input
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
