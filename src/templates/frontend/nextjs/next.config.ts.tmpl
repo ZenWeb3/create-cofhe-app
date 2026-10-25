@@ -3,6 +3,7 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   // The SDK ships untranspiled ESM and loads tfhe's wasm lazily.
   transpilePackages: ['@cofhe/sdk'],
+  agentRules: false,
   async headers() {
     return [
       {
