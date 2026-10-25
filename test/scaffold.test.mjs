@@ -162,6 +162,30 @@ test('every contract uses the batch input api and allows what it stores', async 
   }
 })
 
+test('the vite frontend ships production cross-origin isolation headers', async () => {
+  const options = optionsFor('isolation', 'hardhat', 'vite', 'blank')
+  await scaffold(options)
+
+  const headers = await readFile(path.join(options.targetDir, 'frontend', 'public', '_headers'), 'utf8')
+  assert.match(headers, /Cross-Origin-Opener-Policy: same-origin/)
+  assert.match(headers, /Cross-Origin-Embedder-Policy: credentialless/)
+
+  const vercel = JSON.parse(await readFile(path.join(options.targetDir, 'frontend', 'vercel.json'), 'utf8'))
+  assert.equal(vercel.headers[0].headers.length, 2)
+
+  const readme = await readFile(path.join(options.targetDir, 'README.md'), 'utf8')
+  assert.match(readme, /## Hosting the frontend/)
+})
+
+test('a project without a frontend has no hosting section', async () => {
+  const options = optionsFor('no-hosting', 'foundry', 'none', 'blank')
+  await scaffold(options)
+
+  const readme = await readFile(path.join(options.targetDir, 'README.md'), 'utf8')
+  assert.doesNotMatch(readme, /Hosting the frontend/)
+  assert.match(readme, /## Deploying to Arbitrum Sepolia/)
+})
+
 test('refuses a target directory that already has files', async () => {
   const dir = path.join(root, 'occupied')
   await mkdir(dir, { recursive: true })

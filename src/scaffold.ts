@@ -18,6 +18,13 @@ const FRONTEND_ENV: Record<Exclude<Frontend, 'none'>, { prefix: string; file: st
   vite: { prefix: 'VITE_', file: '.env' },
 }
 
+const FRONTEND_HOSTING: Record<Exclude<Frontend, 'none'>, string> = {
+  nextjs:
+    '`next.config.ts` already sends them, so any host that runs the Next.js server — Vercel, Netlify,\nRailway, Fly, a container — needs no extra setup. A purely static export would not send them.',
+  vite:
+    'The build writes `dist/_headers` for Netlify and Cloudflare Pages, and `vercel.json` covers Vercel.\nOn any other host (S3 plus CloudFront, nginx, Caddy) set the two headers yourself.',
+}
+
 function runScript(pm: PackageManager, dir: string, script: string): string {
   if (pm === 'npm') return `npm --prefix ${dir} run ${script}`
   if (pm === 'yarn') return `yarn --cwd ${dir} ${script}`
@@ -60,6 +67,7 @@ export function buildVars(options: ProjectOptions): Record<string, string> {
     frontendEnvFile: frontend ? FRONTEND_ENV[frontend].file : '',
     frontendDevCommand: frontend ? runScript(pm, 'frontend', 'dev') : '',
     frontendBuildCommand: frontend ? runScript(pm, 'frontend', 'build') : '',
+    frontendHostingNote: frontend ? FRONTEND_HOSTING[frontend] : '',
   }
 }
 

@@ -2,6 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+const isolation = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'credentialless',
+}
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   // tfhe loads its own wasm, so it must not be pre-bundled.
@@ -11,11 +16,8 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
-  server: {
-    // Cross-origin isolation lets tfhe prove with a multi-threaded wasm pool.
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'credentialless',
-    },
-  },
+  // Cross-origin isolation lets tfhe prove with a multi-threaded wasm pool. These only cover the
+  // dev and preview servers — production headers come from public/_headers or vercel.json.
+  server: { headers: isolation },
+  preview: { headers: isolation },
 })
