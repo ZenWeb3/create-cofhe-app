@@ -1,0 +1,72 @@
+import hre from 'hardhat'
+import { expect } from 'chai'
+import { Encryptable, FheTypes, type CofheClient } from '@cofhe/sdk'
+import type { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
+
+describe('EncryptedEscrow', () => {
+  let alice: HardhatEthersSigner
+  let bob: HardhatEthersSigner
+  let aliceClient: CofheClient
+  let bobClient: CofheClient
+
+  before(async () => {
+    ;[alice, bob] = await hre.ethers.getSigners()
+    aliceClient = await hre.cofhe.createClientWithBatteries(alice)
+    bobClient = await hre.cofhe.createClientWithBatteries(bob)
+  })
+
+  async function deployFunded(amount: bigint) {
+    const factory = await hre.ethers.getContractFactory('EncryptedEscrow', alice)
+    const escrow = await factory.deploy(await bob.getAddress())
+    await escrow.waitForDeployment()
+
+    const [handle, signature] = await aliceClient
+      .encryptInputs([Encryptable.uint64(amount)])
+      .setConsumingContract(await escrow.getAddress())
+      .execute()
+
+    await (await escrow.deposit([handle], signature)).wait()
+    return escrow
+  }
+
+  it('lets the depositor read the escrowed amount', async () => {
+    const escrow = await deployFunded(500n)
+
+    expect(await escrow.funded()).to.equal(true)
+    expect(await aliceClient.decryptForView(await escrow.escrowedAmount(), FheTypes.Uint64).execute()).to.equal(500n)
+  })
+
+  it('moves the encrypted balance to the beneficiary on release', async () => {
+    const escrow = await deployFunded(500n)
+
+    await (await escrow.release()).wait()
+
+    expect(await escrow.released()).to.equal(true)
+    expect(
+      await bobClient.decryptForView(await escrow.beneficiaryBalance(), FheTypes.Uint64).execute(),
+    ).to.equal(500n)
+    expect(await aliceClient.decryptForView(await escrow.escrowedAmount(), FheTypes.Uint64).execute()).to.equal(0n)
+  })
+
+  it('returns the encrypted balance to the depositor on refund', async () => {
+    const escrow = await deployFunded(500n)
+
+    await (await escrow.refund()).wait()
+
+    expect(await escrow.refunded()).to.equal(true)
+    expect(await aliceClient.decryptForView(await escrow.depositorBalance(), FheTypes.Uint64).execute()).to.equal(500n)
+  })
+
+  it('rejects a release from anyone but the depositor', async () => {
+    const escrow = await deployFunded(500n)
+
+    await expect(escrow.connect(bob).release()).to.be.revertedWithCustomError(escrow, 'NotDepositor')
+  })
+
+  it('rejects settling twice', async () => {
+    const escrow = await deployFunded(500n)
+    await (await escrow.release()).wait()
+
+    await expect(escrow.refund()).to.be.revertedWithCustomError(escrow, 'AlreadySettled')
+  })
+})

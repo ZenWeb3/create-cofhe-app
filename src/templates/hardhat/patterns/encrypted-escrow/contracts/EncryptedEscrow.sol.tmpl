@@ -1,0 +1,105 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {FHE, euint64, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+
+/// @notice Escrow whose deposited amount is an encrypted handle. Only the settled party can read it.
+contract EncryptedEscrow {
+    event Deposited(address indexed depositor);
+    event Released(address indexed beneficiary);
+    event Refunded(address indexed depositor);
+
+    error NotDepositor();
+    error AlreadySettled();
+    error NothingDeposited();
+    error ZeroAddress();
+
+    address public immutable depositor;
+    address public immutable beneficiary;
+    bool public funded;
+    bool public released;
+    bool public refunded;
+
+    euint64 private _amount;
+    euint64 private _beneficiaryBalance;
+    euint64 private _depositorBalance;
+
+    modifier onlyDepositor() {
+        if (msg.sender != depositor) revert NotDepositor();
+        _;
+    }
+
+    modifier unsettled() {
+        if (released || refunded) revert AlreadySettled();
+        _;
+    }
+
+    constructor(address escrowBeneficiary) {
+        if (escrowBeneficiary == address(0)) revert ZeroAddress();
+
+        depositor = msg.sender;
+        beneficiary = escrowBeneficiary;
+
+        _amount = FHE.asEuint64(0);
+        _beneficiaryBalance = FHE.asEuint64(0);
+        _depositorBalance = FHE.asEuint64(0);
+
+        FHE.allowThis(_amount);
+        FHE.allowThis(_beneficiaryBalance);
+        FHE.allowThis(_depositorBalance);
+    }
+
+    function deposit(externalEuint64[] calldata values, bytes calldata signature) external onlyDepositor unsettled {
+        euint64 amount = FHE.asEuint64s(values, signature)[0];
+
+        _amount = FHE.add(_amount, amount);
+        funded = true;
+
+        FHE.allowThis(_amount);
+        FHE.allowSender(_amount);
+
+        emit Deposited(msg.sender);
+    }
+
+    function release() external onlyDepositor unsettled {
+        if (!funded) revert NothingDeposited();
+
+        _beneficiaryBalance = FHE.add(_beneficiaryBalance, _amount);
+        _amount = FHE.asEuint64(0);
+        released = true;
+
+        FHE.allowThis(_beneficiaryBalance);
+        FHE.allowThis(_amount);
+        FHE.allow(_beneficiaryBalance, beneficiary);
+        FHE.allowSender(_amount);
+
+        emit Released(beneficiary);
+    }
+
+    function refund() external onlyDepositor unsettled {
+        if (!funded) revert NothingDeposited();
+
+        _depositorBalance = FHE.add(_depositorBalance, _amount);
+        _amount = FHE.asEuint64(0);
+        refunded = true;
+
+        FHE.allowThis(_depositorBalance);
+        FHE.allowThis(_amount);
+        FHE.allowSender(_depositorBalance);
+        FHE.allowSender(_amount);
+
+        emit Refunded(msg.sender);
+    }
+
+    function escrowedAmount() external view returns (euint64) {
+        return _amount;
+    }
+
+    function beneficiaryBalance() external view returns (euint64) {
+        return _beneficiaryBalance;
+    }
+
+    function depositorBalance() external view returns (euint64) {
+        return _depositorBalance;
+    }
+}
