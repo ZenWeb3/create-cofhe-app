@@ -3,7 +3,10 @@ import type { HardhatUserConfig } from 'hardhat/config'
 import '@nomicfoundation/hardhat-toolbox'
 import '@cofhe/hardhat-plugin'
 
-const accounts = process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+// Hardhat validates every network at startup, so a placeholder or malformed key here would break
+// even `hardhat test`, which needs no key at all. Ignore anything that is not a 32-byte hex key.
+const rawKey = process.env.PRIVATE_KEY?.trim() ?? ''
+const accounts = /^(0x)?[0-9a-fA-F]{64}$/.test(rawKey) ? [rawKey.startsWith('0x') ? rawKey : `0x${rawKey}`] : []
 
 const config: HardhatUserConfig = {
   solidity: {

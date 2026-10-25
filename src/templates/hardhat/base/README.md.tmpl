@@ -22,7 +22,14 @@ cp .env.example .env
 ```
 
 Tests run against the CoFHE mock contracts, which `@cofhe/hardhat-plugin` deploys into the Hardhat
-network automatically. No testnet or API key is needed.
+network automatically. No testnet or API key is needed, and `PRIVATE_KEY` may stay unset.
+
+To deploy locally, start a node — which also deploys the mocks — and point the script at it:
+
+```bash
+{{pmRun}} hardhat node
+{{pmRun}} hardhat run scripts/deploy.ts --network localhost
+```
 {{#if frontend}}
 ## Frontend
 

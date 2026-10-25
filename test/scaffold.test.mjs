@@ -134,6 +134,18 @@ test('every hardhat config pins the cancun evm version', async () => {
   assert.match(config, /'arb-sepolia'/)
 })
 
+test('the hardhat config ignores a private key that is not a 32-byte hex string', async () => {
+  const options = optionsFor('key-guard', 'hardhat', 'none', 'blank')
+  await scaffold(options)
+
+  const config = await readFile(path.join(options.targetDir, 'hardhat.config.ts'), 'utf8')
+  assert.match(config, /\^\(0x\)\?\[0-9a-fA-F\]\{64\}\$/, 'a placeholder key must not break hardhat test')
+
+  const example = await readFile(path.join(options.targetDir, '.env.example'), 'utf8')
+  assert.match(example, /PRIVATE_KEY=your_private_key_here/)
+  assert.doesNotMatch(example, /^PRIVATE_KEY=(0x)?[0-9a-fA-F]{64}$/m, 'the example must not ship a usable key')
+})
+
 test('every contract uses the batch input api and allows what it stores', async () => {
   for (const pattern of PATTERN_NAMES) {
     const options = optionsFor(`api-${pattern}`, 'hardhat', 'none', pattern)
