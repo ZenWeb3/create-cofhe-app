@@ -1,0 +1,210 @@
+'use client'
+
+import { useState } from 'react'
+import {
+  createPublicClient,
+  createWalletClient,
+  custom,
+  type EIP1193Provider,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
+import { arbitrumSepolia } from 'viem/chains'
+import { Encryptable, FheTypes } from '@cofhe/sdk'
+import { useCofhe } from '../hooks/useCofhe'
+import { contractAbi, contractAddress, contractName } from '../lib/contract'
+
+const chain = arbitrumSepolia
+
+export default function Home() {
+  const { client, connected, connecting, error, connect, disconnect } = useCofhe()
+
+  const [account, setAccount] = useState<`0x${string}` | null>(null)
+  const [wallet, setWallet] = useState<WalletClient | null>(null)
+  const [publicClient, setPublicClient] = useState<PublicClient | null>(null)
+  const [amount, setAmount] = useState('42')
+{{#if extraField}}  const [extra, setExtra] = useState('{{extraPlaceholder}}')
+{{/if}}  const [status, setStatus] = useState<string | null>(null)
+  const [decrypted, setDecrypted] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const ready = connected && Boolean(account) && contractAddress.length > 0
+
+  async function handleConnect() {
+    const injected = (globalThis as { ethereum?: EIP1193Provider }).ethereum
+    if (!injected) {
+      setStatus('No injected wallet found')
+      return
+    }
+
+    const [address] = (await injected.request({ method: 'eth_requestAccounts' })) as `0x${string}`[]
+    if (!address) return
+
+    const transport = custom(injected)
+    const nextPublicClient = createPublicClient({ chain, transport })
+    const nextWallet = createWalletClient({ chain, account: address, transport })
+
+    setAccount(address)
+    setPublicClient(nextPublicClient)
+    setWallet(nextWallet)
+
+    await connect(nextPublicClient, nextWallet)
+  }
+
+  function handleDisconnect() {
+    disconnect()
+    setAccount(null)
+    setWallet(null)
+    setPublicClient(null)
+    setDecrypted(null)
+  }
+
+  async function handleSubmit() {
+    if (!wallet || !publicClient || !account) return
+
+    setBusy(true)
+    setStatus('Encrypting input…')
+    try {
+      const [handle, signature] = await client
+        .encryptInputs([Encryptable.{{encryptableFn}}(BigInt(amount))])
+        .setConsumingContract(contractAddress)
+        .execute()
+
+      setStatus('Waiting for the transaction…')
+      const hash = await wallet.writeContract({
+        address: contractAddress,
+        abi: contractAbi,
+        functionName: '{{writeFn}}',
+        args: {{writeArgs}},
+        account,
+        chain,
+      })
+      await publicClient.waitForTransactionReceipt({ hash })
+      setStatus('Confirmed')
+    } catch (cause) {
+      setStatus(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDecrypt() {
+    if (!publicClient || !account) return
+
+    setBusy(true)
+    setStatus('Decrypting…')
+    try {
+      const ctHash = (await publicClient.readContract({
+        address: contractAddress,
+        abi: contractAbi,
+        functionName: '{{readFn}}',
+        args: {{readArgs}},
+      })) as `0x${string}`
+
+      const value = await client.decryptForView(ctHash, FheTypes.{{fheType}}).execute()
+      setDecrypted(String(value))
+      setStatus(null)
+    } catch (cause) {
+      setStatus(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <main className="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-16">
+      <header className="flex flex-col gap-2">
+        <p className="text-xs uppercase tracking-[0.2em] text-cyan-400">Fhenix CoFHE</p>
+        <h1 className="text-3xl font-semibold">{{projectName}}</h1>
+        <p className="text-sm text-neutral-400">
+          {{patternLabel}} — values are encrypted in the browser, verified on-chain as a batch, and only
+          decrypted by accounts the contract has allowed.
+        </p>
+      </header>
+
+      <section className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-5">
+        {account ? (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col">
+              <span className="font-mono text-sm">{account}</span>
+              <span className="text-xs text-neutral-500">
+                {connected ? 'CoFHE client connected' : connecting ? 'Creating permission…' : 'Not connected'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleDisconnect}
+              className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-800"
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleConnect}
+            disabled={connecting}
+            className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-cyan-400 disabled:opacity-50"
+          >
+            {connecting ? 'Connecting…' : 'Connect wallet'}
+          </button>
+        )}
+        {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      </section>
+
+      <section className="flex flex-col gap-4 rounded-xl border border-neutral-800 bg-neutral-900/50 p-5">
+        <h2 className="text-sm font-medium text-neutral-300">{contractName}.{{writeFn}}</h2>
+
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="text-neutral-400">Amount</span>
+          <input
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            inputMode="numeric"
+            className="rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 font-mono outline-none focus:border-cyan-500"
+          />
+        </label>
+{{#if extraField}}
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="text-neutral-400">{{extraLabel}}</span>
+          <input
+            value={extra}
+            onChange={(event) => setExtra(event.target.value)}
+            placeholder="{{extraPlaceholder}}"
+            className="rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 font-mono outline-none focus:border-cyan-500"
+          />
+        </label>
+{{/if}}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!ready || busy}
+          className="self-start rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-cyan-400 disabled:opacity-50"
+        >
+          Encrypt and {{actionLabelLower}}
+        </button>
+
+        {!contractAddress && (
+          <p className="text-xs text-amber-400">
+            Set NEXT_PUBLIC_CONTRACT_ADDRESS in .env.local to the deployed {contractName} address.
+          </p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4 rounded-xl border border-neutral-800 bg-neutral-900/50 p-5">
+        <h2 className="text-sm font-medium text-neutral-300">{contractName}.{{readFn}}</h2>
+        <button
+          type="button"
+          onClick={handleDecrypt}
+          disabled={!ready || busy}
+          className="self-start rounded-md border border-neutral-700 px-4 py-2 text-sm hover:bg-neutral-800 disabled:opacity-50"
+        >
+          Read and decrypt
+        </button>
+        <p className="font-mono text-2xl">{decrypted ?? '—'}</p>
+      </section>
+
+      {status && <p className="text-sm text-neutral-400">{status}</p>}
+    </main>
+  )
+}

@@ -1,0 +1,46 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createCofheClient, createCofheConfig } from '@cofhe/sdk/web'
+import { chains } from '@cofhe/sdk/chains'
+import type { PublicClient, WalletClient } from 'viem'
+
+export function useCofhe() {
+  const client = useMemo(
+    () => createCofheClient(createCofheConfig({ supportedChains: [chains.sepolia, chains.arbSepolia] })),
+    [],
+  )
+
+  const [connected, setConnected] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setConnected(client.connected)
+    return client.subscribe((snapshot) => setConnected(snapshot.connected))
+  }, [client])
+
+  const connect = useCallback(
+    async (publicClient: PublicClient, walletClient: WalletClient) => {
+      setConnecting(true)
+      setError(null)
+      try {
+        await client.connect(publicClient, walletClient)
+        await client.acp.getOrCreateSelfACP()
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause))
+        throw cause
+      } finally {
+        setConnecting(false)
+      }
+    },
+    [client],
+  )
+
+  const disconnect = useCallback(() => {
+    client.disconnect()
+    setConnected(false)
+  }, [client])
+
+  return { client, connected, connecting, error, connect, disconnect }
+}
