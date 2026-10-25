@@ -45,6 +45,8 @@ export const PATTERN_CONTRACTS: Record<Pattern, string> = {
   'encrypted-escrow': 'EncryptedEscrow',
 }
 
+const DEFAULT_NAME = 'my-cofhe-app'
+
 const NAME_RE = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/
 
 export function validateProjectName(value: string | undefined): string | undefined {
@@ -72,14 +74,16 @@ export async function runPrompts(defaults: PromptDefaults = {}): Promise<Project
 
   const projectName = defaults.projectName
     ? defaults.projectName.trim()
-    : unwrap(
-        await p.text({
-          message: 'Project name',
-          placeholder: 'my-cofhe-app',
-          defaultValue: 'my-cofhe-app',
-          validate: validateProjectName,
-        }),
-      )
+    : defaults.yes
+      ? DEFAULT_NAME
+      : unwrap(
+          await p.text({
+            message: 'Project name',
+            placeholder: DEFAULT_NAME,
+            defaultValue: DEFAULT_NAME,
+            validate: validateProjectName,
+          }),
+        )
 
   const nameError = validateProjectName(projectName)
   if (nameError) {
