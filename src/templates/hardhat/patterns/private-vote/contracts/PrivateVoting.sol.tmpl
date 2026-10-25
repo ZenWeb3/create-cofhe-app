@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {FHE, ebool, euint32, externalEuint32} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+
+/// @notice One encrypted tally per option. Tallies stay private until voting closes.
+contract PrivateVoting {
+    event VoteCast(address voter, uint256 option);
+    event VotingEnded();
+    event TallyPublished(uint256 option, uint32 votes);
+
+    error NotOwner();
+    error VotingIsClosed();
+    error VotingStillOpen();
+    error AlreadyVoted();
+    error UnknownOption();
+
+    address public immutable owner;
+    uint256 public optionCount;
+    bool public ended;
+
+    mapping(address => bool) public hasVoted;
+    mapping(uint256 => uint32) public results;
+    mapping(uint256 => bool) public resultPublished;
+
+    mapping(uint256 => euint32) private voteCounts;
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotOwner();
+        _;
+    }
+
+    constructor(uint256 options) {
+        if (options == 0) revert UnknownOption();
+        owner = msg.sender;
+        optionCount = options;
+
+        for (uint256 i = 0; i < options; i++) {
+            voteCounts[i] = FHE.asEuint32(0);
+            FHE.allowThis(voteCounts[i]);
+        }
+    }
+
+    /// @param values A single encrypted ballot weight, which must be 1 to count.
+    function castVote(uint256 option, externalEuint32[] calldata values, bytes calldata signature) external {
+        if (ended) revert VotingIsClosed();
+        if (option >= optionCount) revert UnknownOption();
+        if (hasVoted[msg.sender]) revert AlreadyVoted();
+
+        euint32 weight = FHE.asEuint32s(values, signature)[0];
+
+        // A weight other than 1 is silently discarded, so a voter cannot inflate a tally.
+        ebool isOne = FHE.eq(weight, FHE.asEuint32(1));
+        euint32 counted = FHE.select(isOne, weight, FHE.asEuint32(0));
+
+        voteCounts[option] = FHE.add(voteCounts[option], counted);
+        FHE.allowThis(voteCounts[option]);
+
+        hasVoted[msg.sender] = true;
+        emit VoteCast(msg.sender, option);
+    }
+
+    /// @notice Closes voting and makes every tally publicly decryptable.
+    function endVoting() external onlyOwner {
+        if (ended) revert VotingIsClosed();
+        ended = true;
+
+        for (uint256 i = 0; i < optionCount; i++) {
+            FHE.allowGlobal(voteCounts[i]);
+        }
+
+        emit VotingEnded();
+    }
+
+    /// @notice Writes the threshold-network decryption of one tally on-chain.
+    function publishTally(uint256 option, uint32 votes, bytes calldata signature) external {
+        if (!ended) revert VotingStillOpen();
+        if (option >= optionCount) revert UnknownOption();
+
+        FHE.publishDecryptResult(voteCounts[option], votes, signature);
+
+        results[option] = votes;
+        resultPublished[option] = true;
+
+        emit TallyPublished(option, votes);
+    }
+
+    function encryptedTally(uint256 option) external view returns (euint32) {
+        if (option >= optionCount) revert UnknownOption();
+        return voteCounts[option];
+    }
+}

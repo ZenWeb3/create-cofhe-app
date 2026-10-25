@@ -1,0 +1,87 @@
+import hre from 'hardhat'
+import { expect } from 'chai'
+import { Encryptable, FheTypes, type CofheClient } from '@cofhe/sdk'
+import type { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
+
+const OPTIONS = 3
+
+describe('PrivateVoting', () => {
+  let owner: HardhatEthersSigner
+  let alice: HardhatEthersSigner
+  let bob: HardhatEthersSigner
+  let ownerClient: CofheClient
+  let aliceClient: CofheClient
+  let bobClient: CofheClient
+
+  before(async () => {
+    ;[owner, alice, bob] = await hre.ethers.getSigners()
+    ownerClient = await hre.cofhe.createClientWithBatteries(owner)
+    aliceClient = await hre.cofhe.createClientWithBatteries(alice)
+    bobClient = await hre.cofhe.createClientWithBatteries(bob)
+  })
+
+  async function deploy() {
+    const factory = await hre.ethers.getContractFactory('PrivateVoting', owner)
+    const voting = await factory.deploy(OPTIONS)
+    await voting.waitForDeployment()
+    return voting
+  }
+
+  async function vote(
+    client: CofheClient,
+    signer: HardhatEthersSigner,
+    voting: any,
+    option: number,
+    weight: bigint,
+  ) {
+    const [handle, signature] = await client
+      .encryptInputs([Encryptable.uint32(weight)])
+      .setConsumingContract(await voting.getAddress())
+      .execute()
+
+    await (await voting.connect(signer).castVote(option, [handle], signature)).wait()
+  }
+
+  it('tallies votes without revealing them', async () => {
+    const voting = await deploy()
+
+    await vote(aliceClient, alice, voting, 1, 1n)
+    await vote(bobClient, bob, voting, 1, 1n)
+
+    const tally = await ownerClient.decryptForView(await voting.encryptedTally(1), FheTypes.Uint32).execute()
+    expect(tally).to.equal(2n)
+    expect(await voting.hasVoted(await alice.getAddress())).to.equal(true)
+  })
+
+  it('discards a ballot weight that is not 1', async () => {
+    const voting = await deploy()
+
+    await vote(aliceClient, alice, voting, 0, 1000n)
+
+    const tally = await ownerClient.decryptForView(await voting.encryptedTally(0), FheTypes.Uint32).execute()
+    expect(tally).to.equal(0n)
+  })
+
+  it('publishes the tallies on-chain after voting ends', async () => {
+    const voting = await deploy()
+
+    await vote(aliceClient, alice, voting, 2, 1n)
+    await (await voting.connect(owner).endVoting()).wait()
+
+    for (let option = 0; option < OPTIONS; option++) {
+      const handle = await voting.encryptedTally(option)
+      const { decryptedValue, signature } = await ownerClient.decryptForTx(handle).withoutACP().execute()
+      await (await voting.publishTally(option, decryptedValue, signature)).wait()
+    }
+
+    expect(await voting.results(2)).to.equal(1n)
+    expect(await voting.results(0)).to.equal(0n)
+  })
+
+  it('rejects a second vote from the same account', async () => {
+    const voting = await deploy()
+    await vote(aliceClient, alice, voting, 0, 1n)
+
+    await expect(vote(aliceClient, alice, voting, 1, 1n)).to.be.revertedWithCustomError(voting, 'AlreadyVoted')
+  })
+})
