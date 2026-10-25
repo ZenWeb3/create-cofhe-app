@@ -36,7 +36,7 @@ create
   .description('Scaffold a new CoFHE project')
   .action(async (projectName: string | undefined, opts: Record<string, unknown>) => {
     printBanner()
-    await createApp(optionsToDefaults(projectName, opts))
+    await createApp(optionsToDefaults(projectName, opts, create))
   })
 program.addCommand(create)
 

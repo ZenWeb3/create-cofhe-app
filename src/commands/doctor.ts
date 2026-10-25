@@ -171,6 +171,7 @@ export async function runDoctor(cwd = process.cwd()): Promise<number> {
   }
 
   const noun = issues.length === 1 ? 'issue' : 'issues'
-  console.log(`\n  ${pc.yellow(`${issues.length} ${noun} found. Fix them before deploying.`)}\n`)
+  const pronoun = issues.length === 1 ? 'it' : 'them'
+  console.log(`\n  ${pc.yellow(`${issues.length} ${noun} found. Fix ${pronoun} before deploying.`)}\n`)
   return 1
 }

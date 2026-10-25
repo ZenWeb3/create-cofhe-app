@@ -125,24 +125,36 @@ export function buildProgram(): Command {
     .option('-y, --yes', 'accept the defaults for every unanswered prompt')
 }
 
-export function optionsToDefaults(projectName: string | undefined, opts: Record<string, unknown>): PromptDefaults {
+/**
+ * Commander gives a negated flag like --no-git a default of true, so the flag has to be read from
+ * its value source to tell "not passed" (ask) from "passed" (use it).
+ */
+export function optionsToDefaults(
+  projectName: string | undefined,
+  opts: Record<string, unknown>,
+  command?: Command,
+): PromptDefaults {
+  const passed = (name: string): boolean => command?.getOptionValueSource(name) === 'cli'
+
   return {
     projectName,
     toolchain: opts.toolchain as Toolchain | undefined,
     frontend: opts.frontend as Frontend | undefined,
     pattern: opts.pattern as Pattern | undefined,
     packageManager: opts.packageManager as PackageManager | undefined,
-    git: opts.git as boolean | undefined,
-    install: opts.install as boolean | undefined,
+    git: passed('git') ? (opts.git as boolean) : undefined,
+    install: passed('install') ? (opts.install as boolean) : true,
     yes: opts.yes as boolean | undefined,
   }
 }
 
 async function main(): Promise<void> {
-  const program = buildProgram().action(async (projectName: string | undefined, opts: Record<string, unknown>) => {
-    printBanner()
-    await createApp(optionsToDefaults(projectName, opts))
-  })
+  const program: Command = buildProgram().action(
+    async (projectName: string | undefined, opts: Record<string, unknown>) => {
+      printBanner()
+      await createApp(optionsToDefaults(projectName, opts, program))
+    },
+  )
 
   await program.parseAsync(process.argv)
 }
