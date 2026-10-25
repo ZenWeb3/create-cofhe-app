@@ -1,0 +1,73 @@
+# {{projectName}}
+
+{{patternDescription}}
+
+Built with [Hardhat](https://hardhat.org) and [Fhenix CoFHE](https://cofhesdk.fhenix.io) — encrypted
+state lives on-chain as ciphertext handles and all arithmetic runs on the CoFHE coprocessor.
+
+## Layout
+
+```
+contracts/{{contractName}}.sol   the {{patternLabel}} contract
+test/{{contractName}}.test.ts    mock-network tests
+scripts/deploy.ts                deployment script
+{{#if frontend}}frontend/                        {{frontendLabel}} dApp
+{{/if}}```
+
+## Getting started
+
+```bash
+cp .env.example .env
+{{pmRun}} compile
+{{pmRun}} test
+```
+
+Tests run against the CoFHE mock contracts, which `@cofhe/hardhat-plugin` deploys into the Hardhat
+network automatically. No testnet or API key is needed.
+{{#if frontend}}
+## Frontend
+
+```bash
+{{pmRun}} dev
+```
+
+Set `{{frontendEnvPrefix}}CONTRACT_ADDRESS` in `frontend/{{frontendEnvFile}}` after deploying.
+{{/if}}
+## Deploying to Arbitrum Sepolia
+
+Arbitrum Sepolia is CoFHE's primary testnet.
+
+1. Put a funded key in `.env` as `PRIVATE_KEY`.
+2. Deploy:
+
+   ```bash
+   {{pmRun}} deploy:arb
+   ```
+
+Ethereum Sepolia is also supported via `{{pmRun}} deploy:sepolia`.
+
+### Testnet funds
+
+- Arbitrum Sepolia ETH: https://faucet.quicknode.com/arbitrum/sepolia
+- Ethereum Sepolia ETH: https://faucet.quicknode.com/ethereum/sepolia
+- CoFHE faucet task: `npx hardhat task:cofhe:use-faucet --network arb-sepolia`
+
+## Working with encrypted values
+
+Encrypted inputs are produced off-chain and verified on-chain as a batch:
+
+```ts
+const [handle, signature] = await client
+  .encryptInputs([Encryptable.uint32(42n)])
+  .setConsumingContract(await contract.getAddress())
+  .execute()
+```
+
+The contract converts them with `FHE.asEuint32s(handles, signature)` and must call `FHE.allowThis`
+on anything it stores, plus `FHE.allowSender` or `FHE.allow(handle, account)` for whoever is allowed
+to decrypt it.
+
+## Links
+
+- CoFHE docs: https://cofhesdk.fhenix.io
+- Fhenix Discord: https://discord.gg/FuVgxrvJMY

@@ -1,0 +1,41 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "hardhat test",
+    "compile": "hardhat compile",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network eth-sepolia",
+    "deploy:arb": "hardhat run scripts/deploy.ts --network arb-sepolia"{{#if frontend}},
+    "dev": "{{frontendDevCommand}}",
+    "build:frontend": "{{frontendBuildCommand}}"{{/if}}
+  },
+  "dependencies": {
+    "@cofhe/sdk": "^1.0.1",
+    "@fhenixprotocol/cofhe-contracts": "^1.0.2",
+    "@openzeppelin/contracts": "^5.4.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@cofhe/hardhat-plugin": "^1.0.1",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@typechain/ethers-v6": "^0.5.0",
+    "@typechain/hardhat": "^9.0.0",
+    "@types/chai": "^4.2.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.0",
+    "chai": "^4.5.0",
+    "ethers": "^6.13.0",
+    "hardhat": "^2.26.0",
+    "hardhat-gas-reporter": "^1.0.10",
+    "solidity-coverage": "^0.8.14",
+    "ts-node": "^10.9.2",
+    "typechain": "^8.3.2",
+    "typescript": "^5.7.0"
+  }
+}
