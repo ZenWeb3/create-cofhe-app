@@ -28,7 +28,7 @@ contract EncryptedEscrowTest is CofheTest {
         _deposit(500);
     }
 
-    function test_depositorCanReadEscrowedAmount() public view {
+    function test_depositorCanReadEscrowedAmount() public {
         assertTrue(escrow.funded());
         expectPlaintext(escrow.escrowedAmount(), uint64(500));
     }

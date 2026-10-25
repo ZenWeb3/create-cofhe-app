@@ -22,6 +22,7 @@ contract EncryptedTokenTest is CofheTest {
         bob = createCofheClient();
         bob.connect(BOB_PKEY);
 
+        vm.prank(alice.account());
         token = new EncryptedToken("Encrypted Token", "eTKN");
     }
 
@@ -48,11 +49,22 @@ contract EncryptedTokenTest is CofheTest {
         expectPlaintext(token.balanceOf(bob.account()), uint64(0));
     }
 
-    function _mint(address to, uint64 amount) private {
-        (externalEuint64 handle, bytes memory signature) = _encrypt(amount);
+    function test_onlyOwnerCanMint() public {
+        (externalEuint64 handle, bytes memory signature) = bob.createExternalEuint64(1, address(token));
         externalEuint64[] memory handles = new externalEuint64[](1);
         handles[0] = handle;
 
+        vm.prank(bob.account());
+        vm.expectRevert(EncryptedToken.NotOwner.selector);
+        token.mint(bob.account(), handles, signature);
+    }
+
+    function _mint(address to, uint64 amount) private {
+        (externalEuint64 handle, bytes memory signature) = alice.createExternalEuint64(amount, address(token));
+        externalEuint64[] memory handles = new externalEuint64[](1);
+        handles[0] = handle;
+
+        vm.prank(alice.account());
         token.mint(to, handles, signature);
     }
 
@@ -63,11 +75,5 @@ contract EncryptedTokenTest is CofheTest {
 
         vm.prank(client.account());
         token.transfer(to, handles, signature);
-    }
-
-    function _encrypt(uint64 amount) private returns (externalEuint64, bytes memory) {
-        CofheClient owner = createCofheClient();
-        owner.connect(uint256(uint160(address(this))));
-        return owner.createExternalEuint64(amount, address(token));
     }
 }
