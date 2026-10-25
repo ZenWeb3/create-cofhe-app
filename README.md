@@ -107,7 +107,14 @@ node dist/index.js my-app --no-install
 
 Templates live in `src/templates` as `.tmpl` files and are copied into `dist` by the build.
 `{{placeholders}}` and `{{#if key}}…{{/if}}` blocks are resolved by `src/scaffold.ts` from the
-pattern metadata in `src/patterns.ts`.
+pattern metadata in `src/patterns.ts`. Solidity sources are shared: a Foundry project takes its
+contracts from `src/templates/hardhat/patterns/<pattern>/contracts` and only its tests from
+`src/templates/foundry/...`.
+
+`@fhenixprotocol/cofhe-contracts` is pinned to an exact version in the scaffolded `package.json`
+because `@cofhe/mock-contracts` implements `ITaskManager` from one specific release — a caret range
+resolves to a newer interface and the mocks stop compiling. When bumping the stack, read the version
+`@cofhe/mock-contracts` itself depends on and pin to that.
 
 ## Links
 
