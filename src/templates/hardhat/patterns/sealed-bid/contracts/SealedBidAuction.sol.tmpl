@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {FHE, ebool, euint128, eaddress, externalEuint128} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+
+/// @notice Sealed bid auction. Bids stay encrypted; only the winning bid is ever revealed.
+contract SealedBidAuction {
+    event BidPlaced(address bidder);
+    event AuctionEnded(address winner);
+
+    error NotOwner();
+    error AuctionIsOver();
+    error AuctionStillRunning();
+    error AlreadyRevealed();
+
+    address public immutable owner;
+    bool public ended;
+    bool public revealed;
+    address public winner;
+    uint128 public winningBid;
+
+    euint128 private highestBid;
+    eaddress private highestBidder;
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotOwner();
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
+        highestBid = FHE.asEuint128(0);
+        highestBidder = FHE.asEaddress(address(0));
+        FHE.allowThis(highestBid);
+        FHE.allowThis(highestBidder);
+    }
+
+    function placeBid(externalEuint128[] calldata values, bytes calldata signature) external {
+        if (ended) revert AuctionIsOver();
+
+        euint128 bid = FHE.asEuint128s(values, signature)[0];
+        ebool isHighest = FHE.gt(bid, highestBid);
+
+        highestBid = FHE.select(isHighest, bid, highestBid);
+        highestBidder = FHE.select(isHighest, FHE.asEaddress(msg.sender), highestBidder);
+
+        FHE.allowThis(highestBid);
+        FHE.allowThis(highestBidder);
+        FHE.allowSender(bid);
+
+        emit BidPlaced(msg.sender);
+    }
+
+    /// @notice Closes bidding and makes the winning handles publicly decryptable.
+    function endAuction() external onlyOwner {
+        if (ended) revert AuctionIsOver();
+        ended = true;
+        FHE.allowGlobal(highestBid);
+        FHE.allowGlobal(highestBidder);
+    }
+
+    /// @notice Writes the threshold-network decryption of the winning handles on-chain.
+    function revealWinner(
+        uint128 bid,
+        bytes calldata bidSignature,
+        address bidder,
+        bytes calldata bidderSignature
+    ) external {
+        if (!ended) revert AuctionStillRunning();
+        if (revealed) revert AlreadyRevealed();
+
+        FHE.publishDecryptResult(highestBid, bid, bidSignature);
+        FHE.publishDecryptResult(highestBidder, bidder, bidderSignature);
+
+        revealed = true;
+        winningBid = bid;
+        winner = bidder;
+
+        emit AuctionEnded(bidder);
+    }
+
+    function encryptedHighestBid() external view returns (euint128) {
+        return highestBid;
+    }
+
+    function encryptedHighestBidder() external view returns (eaddress) {
+        return highestBidder;
+    }
+}

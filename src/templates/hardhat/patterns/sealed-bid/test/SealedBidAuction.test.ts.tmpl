@@ -1,0 +1,77 @@
+import hre from 'hardhat'
+import { expect } from 'chai'
+import { Encryptable, FheTypes, type CofheClient } from '@cofhe/sdk'
+import type { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
+
+describe('SealedBidAuction', () => {
+  let owner: HardhatEthersSigner
+  let alice: HardhatEthersSigner
+  let bob: HardhatEthersSigner
+  let aliceClient: CofheClient
+  let bobClient: CofheClient
+
+  before(async () => {
+    ;[owner, alice, bob] = await hre.ethers.getSigners()
+    aliceClient = await hre.cofhe.createClientWithBatteries(alice)
+    bobClient = await hre.cofhe.createClientWithBatteries(bob)
+  })
+
+  async function deploy() {
+    const factory = await hre.ethers.getContractFactory('SealedBidAuction', owner)
+    const auction = await factory.deploy()
+    await auction.waitForDeployment()
+    return auction
+  }
+
+  async function bid(client: CofheClient, signer: HardhatEthersSigner, auction: any, amount: bigint) {
+    const [handle, signature] = await client
+      .encryptInputs([Encryptable.uint128(amount)])
+      .setConsumingContract(await auction.getAddress())
+      .execute()
+
+    await (await auction.connect(signer).placeBid([handle], signature)).wait()
+  }
+
+  it('keeps the highest bid encrypted until the auction ends', async () => {
+    const auction = await deploy()
+
+    await bid(aliceClient, alice, auction, 100n)
+    await bid(bobClient, bob, auction, 250n)
+
+    const highest = await aliceClient.decryptForView(await auction.encryptedHighestBid(), FheTypes.Uint128).execute()
+    expect(highest).to.equal(250n)
+    expect(await auction.revealed()).to.equal(false)
+  })
+
+  it('reveals the winner on-chain after the auction ends', async () => {
+    const auction = await deploy()
+
+    await bid(aliceClient, alice, auction, 100n)
+    await bid(bobClient, bob, auction, 250n)
+
+    await (await auction.connect(owner).endAuction()).wait()
+    expect(await auction.ended()).to.equal(true)
+
+    const bidResult = await aliceClient.decryptForTx(await auction.encryptedHighestBid()).withoutACP().execute()
+    const bidderResult = await aliceClient.decryptForTx(await auction.encryptedHighestBidder()).withoutACP().execute()
+
+    await (
+      await auction.revealWinner(
+        bidResult.decryptedValue,
+        bidResult.signature,
+        hre.ethers.getAddress(`0x${bidderResult.decryptedValue.toString(16).padStart(40, '0')}`),
+        bidderResult.signature,
+      )
+    ).wait()
+
+    expect(await auction.winningBid()).to.equal(250n)
+    expect(await auction.winner()).to.equal(await bob.getAddress())
+  })
+
+  it('rejects bids once the auction is over', async () => {
+    const auction = await deploy()
+    await (await auction.connect(owner).endAuction()).wait()
+
+    await expect(bid(aliceClient, alice, auction, 10n)).to.be.revertedWithCustomError(auction, 'AuctionIsOver')
+  })
+})
