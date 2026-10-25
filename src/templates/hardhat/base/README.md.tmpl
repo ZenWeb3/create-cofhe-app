@@ -31,6 +31,10 @@ network automatically. No testnet or API key is needed.
 ```
 
 Set `{{frontendEnvPrefix}}CONTRACT_ADDRESS` in `frontend/{{frontendEnvFile}}` after deploying.
+
+The page encrypts in the browser, so the CoFHE client is loaded client-side only and the whole
+frontend is served with `Cross-Origin-Opener-Policy`/`Cross-Origin-Embedder-Policy` set — that is
+what lets tfhe prove across several wasm threads instead of one.
 {{/if}}
 ## Deploying to Arbitrum Sepolia
 

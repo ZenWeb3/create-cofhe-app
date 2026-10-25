@@ -1,7 +1,8 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // The SDK ships untranspiled ESM and loads tfhe's wasm lazily.
+  // The SDK loads tfhe's wasm lazily and proves inside a module worker.
+  // Turbopack deadlocks while bundling that worker, so the scripts pass --webpack.
   transpilePackages: ['@cofhe/sdk'],
   agentRules: false,
   async headers() {
