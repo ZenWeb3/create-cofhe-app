@@ -102,8 +102,12 @@ Available: `handles`, `acps` (alias `permits`), `encrypt`, `decrypt`, `allow`, `
 ```bash
 pnpm install
 pnpm build
+pnpm test                               # 36 tests over the renderer, every pattern and both commands
 node dist/index.js my-app --no-install
 ```
+
+CI builds the CLI, runs the test suite, then scaffolds every toolchain x pattern combination and runs
+the generated project's own tests, plus a Next.js and a Vite frontend build.
 
 Templates live in `src/templates` as `.tmpl` files and are copied into `dist` by the build.
 `{{placeholders}}` and `{{#if key}}…{{/if}}` blocks are resolved by `src/scaffold.ts` from the
@@ -111,10 +115,14 @@ pattern metadata in `src/patterns.ts`. Solidity sources are shared: a Foundry pr
 contracts from `src/templates/hardhat/patterns/<pattern>/contracts` and only its tests from
 `src/templates/foundry/...`.
 
-`@fhenixprotocol/cofhe-contracts` is pinned to an exact version in the scaffolded `package.json`
-because `@cofhe/mock-contracts` implements `ITaskManager` from one specific release — a caret range
-resolves to a newer interface and the mocks stop compiling. When bumping the stack, read the version
-`@cofhe/mock-contracts` itself depends on and pin to that.
+Two constraints are worth knowing before bumping anything:
+
+- `@fhenixprotocol/cofhe-contracts` is pinned to an exact version in the scaffolded `package.json`
+  because `@cofhe/mock-contracts` implements `ITaskManager` from one specific release — a caret range
+  resolves to a newer interface and the mocks stop compiling. When bumping the stack, read the
+  version `@cofhe/mock-contracts` itself depends on and pin to that.
+- The Next.js template passes `--webpack` to `next dev` and `next build`. Turbopack deadlocks while
+  bundling the module worker the SDK uses for proof generation; webpack emits it correctly.
 
 ## Links
 
