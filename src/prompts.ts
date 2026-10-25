@@ -47,8 +47,8 @@ export const PATTERN_CONTRACTS: Record<Pattern, string> = {
 
 const NAME_RE = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/
 
-export function validateProjectName(value: string): string | undefined {
-  const name = value.trim()
+export function validateProjectName(value: string | undefined): string | undefined {
+  const name = (value ?? '').trim()
   if (!name) return 'Project name is required'
   if (name === '.') return 'Run in an empty directory with an explicit name instead'
   if (!NAME_RE.test(path.basename(name))) {
@@ -62,9 +62,9 @@ function cancel(): never {
   process.exit(0)
 }
 
-function unwrap<T>(value: T | symbol): T {
+function unwrap<T>(value: T | symbol): Exclude<T, symbol> {
   if (p.isCancel(value)) cancel()
-  return value as T
+  return value as Exclude<T, symbol>
 }
 
 export async function runPrompts(defaults: PromptDefaults = {}): Promise<ProjectOptions> {
