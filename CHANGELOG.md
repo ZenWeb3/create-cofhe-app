@@ -21,6 +21,10 @@
   `@cofhe/mock-contracts` was built against, catching both a drifted install and a caret range that
   will drift on the next one. Either one otherwise surfaces as
   `Contract "MockTaskManager" should be marked as abstract`, which names neither package.
+- A new banner: the CoFHE wordmark in solid blocks with the outline dimmed into a drop shadow, over a
+  line showing a plaintext 42 becoming a real `euint64` handle. It drops the cipher line in a narrow
+  terminal, collapses to one line in a very narrow one, and falls back to pure ASCII where box
+  characters would come out as mojibake.
 
 ### Fixed
 
