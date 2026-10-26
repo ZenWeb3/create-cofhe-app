@@ -18,6 +18,7 @@ interface PackageJson {
 const SDK = '@cofhe/sdk'
 const CONTRACTS = '@fhenixprotocol/cofhe-contracts'
 const FOUNDRY_PLUGIN = '@cofhe/foundry-plugin'
+const MOCKS = '@cofhe/mock-contracts'
 
 async function readJson<T>(file: string): Promise<T | undefined> {
   try {
@@ -64,6 +65,38 @@ async function checkDependency(cwd: string, pkg: PackageJson, name: string): Pro
   }
 
   return { ok: false, label: `${name} missing`, fix: `Add ${name} to the project dependencies` }
+}
+
+/**
+ * MockTaskManager implements ITaskManager from one exact release of the contracts package, so a
+ * project that resolves past it stops compiling with an error that names neither package.
+ */
+async function checkContractsPin(cwd: string, pkg: PackageJson): Promise<Check | undefined> {
+  const mock = await readJson<PackageJson>(path.join(cwd, 'node_modules', ...MOCKS.split('/'), 'package.json'))
+  const required = mock?.dependencies?.[CONTRACTS]
+
+  // Only an exact pin can be compared without resolving semver ranges.
+  if (!mock || !required || !/^\d/.test(required)) return undefined
+
+  const installed = await installedVersion(cwd, CONTRACTS)
+  if (installed && installed !== required) {
+    return {
+      ok: false,
+      label: `${CONTRACTS} ${installed} installed, but ${MOCKS} ${mock.version} needs exactly ${required}`,
+      fix: `Pin "${CONTRACTS}": "${required}" in package.json, then reinstall`,
+    }
+  }
+
+  const range = declaredRange(pkg, CONTRACTS)
+  if (range && /^[\^~]/.test(range) && range.slice(1) === required) {
+    return {
+      ok: false,
+      label: `${CONTRACTS} ${range} will resolve past the ${required} that ${MOCKS} needs exactly`,
+      fix: `Pin "${CONTRACTS}": "${required}" in package.json`,
+    }
+  }
+
+  return { ok: true, label: `${CONTRACTS} matches the ${required} that ${MOCKS} ${mock.version} needs` }
 }
 
 async function checkHardhatConfig(cwd: string): Promise<Check> {
@@ -162,6 +195,8 @@ export async function runDoctor(cwd = process.cwd()): Promise<number> {
 
     checks.push(await checkDependency(cwd, pkg, isFoundry && !isHardhat ? FOUNDRY_PLUGIN : SDK))
     checks.push(await checkDependency(cwd, pkg, CONTRACTS))
+    const pinCheck = await checkContractsPin(cwd, pkg)
+    if (pinCheck) checks.push(pinCheck)
 
     if (isHardhat) checks.push(await checkHardhatConfig(cwd))
     if (isFoundry) checks.push(await checkFoundryConfig(cwd))

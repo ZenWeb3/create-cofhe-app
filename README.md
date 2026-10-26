@@ -63,6 +63,11 @@ Checks the environment and the current project: Node and pnpm versions, the CoFH
 in `.env`, and TypeScript 5 or newer. Checks that do not apply to the project are skipped, so it
 reads sensibly in both Hardhat and Foundry projects.
 
+It also compares `@fhenixprotocol/cofhe-contracts` against the exact version `@cofhe/mock-contracts`
+was built against, including a caret range that has not drifted yet but will on the next install.
+A mismatch there fails the build with `Contract "MockTaskManager" should be marked as abstract`,
+which names neither package.
+
 ```
 $ npx cofhe doctor
 
@@ -72,6 +77,7 @@ $ npx cofhe doctor
   ✓ pnpm 10.34.1
   ✓ @cofhe/sdk 1.0.1
   ✓ @fhenixprotocol/cofhe-contracts 1.0.0
+  ✓ @fhenixprotocol/cofhe-contracts matches the 1.0.0 that @cofhe/mock-contracts 1.0.1 needs
   ✓ evmVersion: 'cancun' set in hardhat.config.ts
   ✗ PRIVATE_KEY not set in .env
     → Copy .env.example to .env and add your key

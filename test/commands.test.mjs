@@ -1,6 +1,6 @@
 import { test, after, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -210,4 +210,64 @@ test('add refuses to run outside a project', async () => {
   assert.equal(await runAdd('sealed-bid', { cwd: root }), 1)
   assert.match(output.join('\n'), /No CoFHE project here/)
   assert.equal(await exists(path.join(root, 'contracts')), false)
+})
+
+async function fakeInstall(cwd, { mockVersion = '1.0.1', requires = '1.0.0', installed = '1.0.0' } = {}) {
+  const manifest = async (name, json) => {
+    const dir = path.join(cwd, 'node_modules', ...name.split('/'))
+    await mkdir(dir, { recursive: true })
+    await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name, ...json }))
+  }
+
+  await manifest('@cofhe/mock-contracts', {
+    version: mockVersion,
+    dependencies: { '@fhenixprotocol/cofhe-contracts': requires },
+  })
+  if (installed) await manifest('@fhenixprotocol/cofhe-contracts', { version: installed })
+}
+
+test('doctor accepts a contracts version the mocks were built against', async () => {
+  const cwd = await blankProject('pin-ok')
+  await fakeInstall(cwd)
+
+  await runDoctor(cwd)
+  assert.match(output.join('\n'), /cofhe-contracts matches the 1\.0\.0 that @cofhe\/mock-contracts 1\.0\.1 needs/)
+})
+
+test('doctor catches a contracts version the mocks cannot compile against', async () => {
+  const cwd = await blankProject('pin-drifted')
+  await fakeInstall(cwd, { installed: '1.0.2' })
+
+  assert.equal(await runDoctor(cwd), 1)
+  const text = output.join('\n')
+  assert.match(text, /1\.0\.2 installed, but @cofhe\/mock-contracts 1\.0\.1 needs exactly 1\.0\.0/)
+  assert.match(text, /Pin "@fhenixprotocol\/cofhe-contracts": "1\.0\.0"/)
+})
+
+test('doctor catches a range that will drift on the next install', async () => {
+  const cwd = await blankProject('pin-range')
+  await fakeInstall(cwd)
+
+  const manifest = path.join(cwd, 'package.json')
+  const pkg = JSON.parse(await readFile(manifest, 'utf8'))
+  pkg.dependencies['@fhenixprotocol/cofhe-contracts'] = '^1.0.0'
+  await writeFile(manifest, JSON.stringify(pkg, null, 2))
+
+  assert.equal(await runDoctor(cwd), 1)
+  assert.match(output.join('\n'), /\^1\.0\.0 will resolve past the 1\.0\.0 that @cofhe\/mock-contracts needs exactly/)
+})
+
+test('doctor skips the pin check when the mocks are not installed', async () => {
+  const cwd = await blankProject('pin-absent')
+
+  await runDoctor(cwd)
+  assert.doesNotMatch(output.join('\n'), /mock-contracts/)
+})
+
+test('doctor skips the pin check when the mocks declare a range', async () => {
+  const cwd = await blankProject('pin-unpinned')
+  await fakeInstall(cwd, { requires: '^1.0.0' })
+
+  await runDoctor(cwd)
+  assert.doesNotMatch(output.join('\n'), /mock-contracts/)
 })
