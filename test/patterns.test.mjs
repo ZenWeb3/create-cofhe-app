@@ -171,3 +171,15 @@ test('pattern metadata is consistent across the modules that duplicate it', () =
   assert.deepEqual(Object.keys(PATTERN_LABELS), Object.keys(PATTERNS))
   assert.deepEqual(Object.keys(PATTERN_CONTRACTS), Object.keys(PATTERNS))
 })
+
+test('the CLI accepts every pattern it offers', async () => {
+  const { buildProgram } = await import('../dist/create.js')
+  const option = buildProgram().options.find((candidate) => candidate.long === '--pattern')
+
+  for (const name of Object.keys(PATTERNS)) {
+    assert.equal(option.parseArg(name), name, `--pattern ${name} is rejected by the CLI`)
+    assert.match(option.description, new RegExp(name), `${name} is missing from the --pattern help`)
+  }
+
+  assert.throws(() => option.parseArg('nope'), /Invalid pattern: nope/)
+})

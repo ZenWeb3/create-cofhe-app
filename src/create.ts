@@ -6,6 +6,7 @@ import { initGitRepo } from './git.js'
 import { installDependencies, isAvailable } from './install.js'
 import {
   clack as p,
+  PATTERN_LABELS,
   runPrompts,
   type Frontend,
   type PackageManager,
@@ -97,7 +98,7 @@ function parsed<T extends string>(name: string, allowed: readonly T[]) {
 
 const TOOLCHAINS = ['hardhat', 'foundry'] as const
 const FRONTENDS = ['nextjs', 'vite', 'none'] as const
-const PATTERNS_LIST = ['blank', 'sealed-bid', 'private-vote', 'encrypted-token', 'encrypted-escrow'] as const
+const PATTERNS_LIST = Object.keys(PATTERN_LABELS) as Pattern[]
 const PACKAGE_MANAGERS = ['pnpm', 'npm', 'yarn'] as const
 
 export function buildProgram(): Command {
