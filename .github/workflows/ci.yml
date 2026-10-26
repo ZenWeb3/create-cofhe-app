@@ -88,6 +88,14 @@ jobs:
       - name: Test project
         working-directory: app
         run: pnpm test
+      - name: Deploy against a local node
+        if: matrix.toolchain == 'hardhat'
+        working-directory: app
+        run: |
+          pnpm hardhat node > node.log 2>&1 &
+          timeout 120 node -e 'const net=require("net");(function t(){const s=net.connect(8545,"127.0.0.1");s.on("connect",()=>{s.end();process.exit(0)});s.on("error",()=>setTimeout(t,300))})()'
+          node ../dist/cli.js deploy EncryptedToken --network localhost
+          node -e 'const d=require("./deployments.json");if(!d.localhost.EncryptedToken.address)process.exit(1)'
 
   frontend:
     name: ${{ matrix.frontend }} frontend

@@ -8,6 +8,8 @@ export interface PatternMeta {
   constructorArgs: string
   /** Arguments for `new Contract(...)` in the Foundry deploy script. */
   solConstructorArgs: string
+  /** Literal constructor values for `cofhe deploy`; `{deployer}` resolves at deploy time. */
+  deployArgs: string[]
   fheType: 'Uint32' | 'Uint64' | 'Uint128'
   encryptableFn: 'uint32' | 'uint64' | 'uint128'
   amountLabel: string
@@ -37,6 +39,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     description:
       'A minimal CoFHE project: one contract that stores a single encrypted number and adds to it without ever decrypting on-chain.',
     contractName: 'Blank',
+    deployArgs: [],
     constructorArgs: '',
     solConstructorArgs: '',
     fheType: 'Uint32',
@@ -54,6 +57,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     description:
       'A sealed bid auction. Bids are compared with `FHE.gt` while still encrypted, so no bidder ever learns another bid, and only the winning bid is published once the auction closes.',
     contractName: 'SealedBidAuction',
+    deployArgs: [],
     constructorArgs: '',
     solConstructorArgs: '',
     fheType: 'Uint128',
@@ -71,6 +75,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     description:
       'A poll with one encrypted tally per option. Ballots are added homomorphically, so no running count is visible until the owner closes voting and publishes the results.',
     contractName: 'PrivateVoting',
+    deployArgs: ['3'],
     constructorArgs: '3',
     solConstructorArgs: '3',
     fheType: 'Uint32',
@@ -92,6 +97,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     description:
       'An ERC-20 shaped token whose balances and total supply are ciphertext handles. Transfers use `FHE.select` with `FHE.gte` so an overdraft moves nothing instead of reverting and leaking the balance.',
     contractName: 'EncryptedToken',
+    deployArgs: ['Encrypted Token', 'eTKN'],
     constructorArgs: "'Encrypted Token', 'eTKN'",
     solConstructorArgs: '"Encrypted Token", "eTKN"',
     fheType: 'Uint64',
@@ -113,6 +119,7 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     description:
       'An escrow holding an encrypted deposit. Release moves the encrypted balance to the beneficiary and grants them decryption rights; refund returns it to the depositor.',
     contractName: 'EncryptedEscrow',
+    deployArgs: ['{deployer}'],
     constructorArgs: 'process.env.BENEFICIARY ?? (await deployer.getAddress())',
     solConstructorArgs: 'vm.envOr("BENEFICIARY", vm.addr(deployerKey))',
     fheType: 'Uint64',

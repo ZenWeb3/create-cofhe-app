@@ -30,6 +30,12 @@ To deploy locally, start a node — which also deploys the mocks — and point t
 {{pmRun}} hardhat node
 {{pmRun}} hardhat run scripts/deploy.ts --network localhost
 ```
+
+`cofhe deploy` does the same thing without editing the script, and records the address:
+
+```bash
+npx cofhe deploy {{contractName}} --network localhost
+```
 {{#if frontend}}
 ## Frontend
 
@@ -71,6 +77,11 @@ Arbitrum Sepolia is CoFHE's primary testnet.
    ```
 
 Ethereum Sepolia is also supported via `{{pmRun}} deploy:sepolia`.
+
+`npx cofhe deploy {{contractName}} --network arb-sepolia` is the same deployment with the address
+recorded in `deployments.json`{{#if frontend}} and written to `{{frontendEnvPrefix}}CONTRACT_ADDRESS`
+in `frontend/{{frontendEnvFile}}`{{/if}}. It also takes any other contract in `contracts/`, which the
+scripts above do not.
 
 ### Testnet funds
 

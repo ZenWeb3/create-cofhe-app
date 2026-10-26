@@ -3,6 +3,7 @@ import { Command } from 'commander'
 import pc from 'picocolors'
 import { getVersion, printBanner } from './banner.js'
 import { PATTERN_NAMES, runAdd } from './commands/add.js'
+import { DEFAULT_NETWORK, runDeploy } from './commands/deploy.js'
 import { runDoctor } from './commands/doctor.js'
 import { explain, listConcepts } from './commands/explain.js'
 import { buildProgram, createApp, optionsToDefaults } from './create.js'
@@ -39,6 +40,28 @@ program
   .action(async (pattern: string | undefined, opts: { force?: boolean }) => {
     process.exitCode = await runAdd(pattern, { force: Boolean(opts.force) })
   })
+
+program
+  .command('deploy')
+  .description('Deploy a contract, record the address and wire it into the frontend')
+  .argument('[contract]', 'contract to deploy; defaults to the only one in contracts/')
+  .option('-n, --network <network>', `network name or RPC url (default: ${DEFAULT_NETWORK})`)
+  .option('-a, --args <values...>', 'constructor arguments, overriding the pattern defaults')
+  .option('--no-frontend', 'leave the frontend env file alone')
+  .option('--dry-run', 'print the deploy command without running it')
+  .action(
+    async (
+      contract: string | undefined,
+      opts: { network?: string; args?: string[]; frontend?: boolean; dryRun?: boolean },
+    ) => {
+      process.exitCode = await runDeploy(contract, {
+        network: opts.network,
+        args: opts.args,
+        frontend: opts.frontend,
+        dryRun: opts.dryRun,
+      })
+    },
+  )
 
 const create = buildProgram()
 create

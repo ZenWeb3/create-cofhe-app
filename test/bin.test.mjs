@@ -109,4 +109,7 @@ test('cofhe add drops a pattern into a project created by the scaffolder', async
       return true
     },
   )
+
+  const deploy = await run(process.execPath, [path.join(dist, 'cli.js'), 'deploy', 'Blank', '--dry-run'], { cwd })
+  assert.match(deploy.stdout, /Would deploy Blank/)
 })

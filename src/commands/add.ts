@@ -3,6 +3,7 @@ import fs from 'fs-extra'
 import pc from 'picocolors'
 import { PATTERNS } from '../patterns.js'
 import type { PackageManager, Pattern, Toolchain } from '../prompts.js'
+import { detectPackageManager, detectToolchains, readProjectName } from '../project.js'
 import { buildVars, patternContractsDir, patternTestDir, planTemplateDir, renderFiles } from '../scaffold.js'
 import type { TemplateFile } from '../scaffold.js'
 
@@ -30,26 +31,6 @@ export function resolvePattern(input: string): Pattern | undefined {
   const key = input.trim().toLowerCase().replace(/[\s_]+/g, '-')
   if ((PATTERN_NAMES as string[]).includes(key)) return key as Pattern
   return ALIASES[key]
-}
-
-async function detectToolchains(cwd: string): Promise<Toolchain[]> {
-  const found: Toolchain[] = []
-  if (await fs.pathExists(path.join(cwd, 'hardhat.config.ts'))) found.push('hardhat')
-  if (await fs.pathExists(path.join(cwd, 'foundry.toml'))) found.push('foundry')
-  return found
-}
-
-async function detectPackageManager(cwd: string): Promise<PackageManager> {
-  if (await fs.pathExists(path.join(cwd, 'yarn.lock'))) return 'yarn'
-  if (await fs.pathExists(path.join(cwd, 'package-lock.json'))) return 'npm'
-  return 'pnpm'
-}
-
-async function projectName(cwd: string): Promise<string> {
-  const manifest = (await fs.readJson(path.join(cwd, 'package.json')).catch(() => undefined)) as
-    | { name?: string }
-    | undefined
-  return manifest?.name ?? path.basename(cwd)
 }
 
 export function listPatterns(): void {
@@ -88,7 +69,7 @@ export async function runAdd(rawPattern: string | undefined, options: AddOptions
 
   const meta = PATTERNS[pattern]
   const vars = buildVars({
-    projectName: await projectName(cwd),
+    projectName: await readProjectName(cwd),
     targetDir: cwd,
     toolchain: toolchains[0] as Toolchain,
     frontend: 'none',

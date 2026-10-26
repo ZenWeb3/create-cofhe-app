@@ -69,6 +69,11 @@ Arbitrum Sepolia is CoFHE's primary testnet.
 
 Ethereum Sepolia is also supported via `{{pmRun}} deploy:sepolia`.
 
+`npx cofhe deploy {{contractName}} --network arb-sepolia` is the same deployment with the address
+recorded in `deployments.json`{{#if frontend}} and written to `{{frontendEnvPrefix}}CONTRACT_ADDRESS`
+in `frontend/{{frontendEnvFile}}`{{/if}}. It also takes any other contract in `contracts/`, which the
+scripts above do not.
+
 ### Testnet funds
 
 - Arbitrum Sepolia ETH: https://faucet.quicknode.com/arbitrum/sepolia

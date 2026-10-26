@@ -80,6 +80,40 @@ $ npx cofhe doctor
   1 issue found. Fix them before deploying.
 ```
 
+### `cofhe deploy [contract]`
+
+Deploys a contract, records the address, and writes it into the frontend's env file — the step that
+otherwise means copying an address out of the terminal by hand.
+
+```
+$ npx cofhe deploy EncryptedToken --network arb-sepolia
+
+  Deploying EncryptedToken → arb-sepolia
+  constructor(Encrypted Token, eTKN)
+
+  ✓ EncryptedToken deployed
+    address   0x9A676e781A523b5d0C0e43731313A708CB607508
+    recorded  deployments.json
+    frontend  frontend/.env.local (NEXT_PUBLIC_CONTRACT_ADDRESS)
+```
+
+- The contract name is optional when `contracts/` holds only one; otherwise the command lists what
+  is there and asks.
+- Constructor arguments default to the pattern's own — `3` options for `private-vote`, a name and
+  symbol for `encrypted-token`, the deployer's address for `encrypted-escrow`. Override with
+  `--args 9` or `--args "My Token" MTK`.
+- `--network` takes a configured network name (`arb-sepolia`, `eth-sepolia`, `localhost`) or an RPC
+  url. A local network needs no `PRIVATE_KEY`.
+- Addresses accumulate in `deployments.json`, keyed by network and contract.
+- `--no-frontend` leaves the env file alone, and `--dry-run` prints the command without deploying.
+
+If the frontend is wired to a different contract than the one you deployed, the command says so
+instead of leaving you to wonder why the page does nothing.
+
+Hardhat deploys through `hardhat run`, Foundry through `forge create`. Foundry takes the key as a
+command-line argument, so it is visible in the process list while `forge` runs; `cofhe deploy` keeps
+it out of its own output, but use a throwaway testnet key either way.
+
 ### `cofhe add <pattern>`
 
 Adds a pattern to a project you already have. Run it inside the project directory and it drops in

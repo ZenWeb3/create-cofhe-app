@@ -19,6 +19,9 @@ First release. Replaces `create-fhenix-dapp`, which scaffolded onto the retired
   allowances, FHE, CoFHE, the encrypted types, external inputs and the mock stack.
 - `cofhe add <pattern>` — adds a pattern's contract and test to an existing project, detecting the
   toolchain and refusing to overwrite without `--force`.
+- `cofhe deploy [contract]` — deploys through Hardhat or Foundry, records the address in
+  `deployments.json` and writes it into the frontend's env file. Constructor arguments default to the
+  pattern's own and can be overridden with `--args`.
 - `cofhe new` — the scaffolder as a subcommand.
 
 ### Notes
