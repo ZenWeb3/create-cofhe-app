@@ -2,6 +2,7 @@
 import { Command } from 'commander'
 import pc from 'picocolors'
 import { getVersion, printBanner } from './banner.js'
+import { PATTERN_NAMES, runAdd } from './commands/add.js'
 import { runDoctor } from './commands/doctor.js'
 import { explain, listConcepts } from './commands/explain.js'
 import { buildProgram, createApp, optionsToDefaults } from './create.js'
@@ -28,6 +29,15 @@ program
       return
     }
     process.exitCode = explain(concept)
+  })
+
+program
+  .command('add')
+  .description('Add a pattern to the project in this directory')
+  .argument('[pattern]', PATTERN_NAMES.join(', '))
+  .option('-f, --force', 'overwrite files that already exist')
+  .action(async (pattern: string | undefined, opts: { force?: boolean }) => {
+    process.exitCode = await runAdd(pattern, { force: Boolean(opts.force) })
   })
 
 const create = buildProgram()

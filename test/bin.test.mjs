@@ -78,3 +78,35 @@ test('an invalid option value is rejected with a clear message', async () => {
     },
   )
 })
+
+test('cofhe add drops a pattern into a project created by the scaffolder', async () => {
+  const cwd = path.join(root, 'added')
+  await run(process.execPath, [
+    path.join(dist, 'index.js'),
+    'added',
+    '-t',
+    'hardhat',
+    '-f',
+    'none',
+    '-p',
+    'blank',
+    '-m',
+    'pnpm',
+    '--no-git',
+    '--no-install',
+    '-y',
+  ], { cwd: root })
+
+  const { stdout } = await run(process.execPath, [path.join(dist, 'cli.js'), 'add', 'auction'], { cwd })
+  assert.match(stdout, /contracts\/SealedBidAuction\.sol/)
+  await stat(path.join(cwd, 'test', 'SealedBidAuction.test.ts'))
+
+  await assert.rejects(
+    () => run(process.execPath, [path.join(dist, 'cli.js'), 'add', 'auction'], { cwd }),
+    (error) => {
+      assert.equal(error.code, 1)
+      assert.match(String(error.stdout ?? ''), /Pass --force/)
+      return true
+    },
+  )
+})

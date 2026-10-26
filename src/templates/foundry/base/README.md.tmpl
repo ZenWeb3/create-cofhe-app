@@ -74,6 +74,16 @@ Ethereum Sepolia is also supported via `{{pmRun}} deploy:sepolia`.
 - Arbitrum Sepolia ETH: https://faucet.quicknode.com/arbitrum/sepolia
 - Ethereum Sepolia ETH: https://faucet.quicknode.com/ethereum/sepolia
 
+## Adding another pattern
+
+```bash
+npx cofhe add <pattern>
+```
+
+Drops a second pattern's contract and test next to this one — `sealed-bid`, `private-vote`,
+`encrypted-token`, `encrypted-escrow` or `blank`. Nothing already here is overwritten. Run
+`npx cofhe add` with no argument for the list.
+
 ## Working with encrypted values
 
 Encrypted inputs are verified on-chain as a batch sharing one signature:

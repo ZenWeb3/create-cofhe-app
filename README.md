@@ -50,6 +50,8 @@ Run it with no options for the interactive flow.
 Each pattern ships with a working test suite — `hardhat test` or `forge test` passes immediately
 after scaffolding, with no testnet or API key.
 
+Pick one while scaffolding, and add any of the others later with `cofhe add <pattern>`.
+
 ## The `cofhe` command
 
 The package also installs a `cofhe` binary.
@@ -77,6 +79,27 @@ $ npx cofhe doctor
 
   1 issue found. Fix them before deploying.
 ```
+
+### `cofhe add <pattern>`
+
+Adds a pattern to a project you already have. Run it inside the project directory and it drops in
+the contract and its test — nothing else is touched, and no dependencies change.
+
+```
+$ npx cofhe add sealed-bid
+
+  Sealed Bid Auction (sealed-bid)
+
+  + contracts/SealedBidAuction.sol
+  + test/SealedBidAuction.test.ts
+```
+
+The toolchain is detected from `hardhat.config.ts` or `foundry.toml`, so the test arrives as
+`.test.ts` or `.t.sol` to match. Short names work too: `auction`, `vote`, `token`, `escrow`. Run
+`cofhe add` with no argument for the list.
+
+Existing files are never overwritten — the command stops and lists them instead. Pass `--force` to
+overwrite anyway. Your deploy script and frontend still point at the contract you scaffolded with.
 
 ### `cofhe explain <concept>`
 

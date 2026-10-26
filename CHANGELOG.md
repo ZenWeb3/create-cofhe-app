@@ -17,6 +17,8 @@ First release. Replaces `create-fhenix-dapp`, which scaffolded onto the retired
 - `cofhe doctor` — environment and project check, aware of both toolchains.
 - `cofhe explain <concept>` — offline explanations of handles, ACPs, encryption, decryption,
   allowances, FHE, CoFHE, the encrypted types, external inputs and the mock stack.
+- `cofhe add <pattern>` — adds a pattern's contract and test to an existing project, detecting the
+  toolchain and refusing to overwrite without `--force`.
 - `cofhe new` — the scaffolder as a subcommand.
 
 ### Notes

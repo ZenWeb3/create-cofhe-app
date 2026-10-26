@@ -2,11 +2,20 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fs from 'fs-extra'
 import { PATTERNS } from './patterns.js'
-import type { Frontend, PackageManager, ProjectOptions } from './prompts.js'
+import type { Frontend, PackageManager, Pattern, ProjectOptions, Toolchain } from './prompts.js'
 
 export type ScaffoldStep = 'contracts' | 'config' | 'frontend'
 
 const TEMPLATE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'templates')
+
+/** Solidity sources are shared between toolchains; only the tests differ. */
+export function patternContractsDir(pattern: Pattern): string {
+  return path.join(TEMPLATE_ROOT, 'hardhat', 'patterns', pattern, 'contracts')
+}
+
+export function patternTestDir(toolchain: Toolchain, pattern: Pattern): string {
+  return path.join(TEMPLATE_ROOT, toolchain, 'patterns', pattern, 'test')
+}
 
 const FRONTEND_LABELS: Record<Exclude<Frontend, 'none'>, string> = {
   nextjs: 'Next.js',
@@ -92,28 +101,41 @@ export async function assertTargetUsable(targetDir: string): Promise<void> {
   if (entries.length > 0) throw new Error(`${targetDir} is not empty`)
 }
 
-async function copyTree(from: string, to: string, vars: Record<string, string>): Promise<string[]> {
-  const written: string[] = []
+export interface TemplateFile {
+  source: string
+  target: string
+}
+
+export async function planTemplateDir(from: string, to: string): Promise<TemplateFile[]> {
+  const planned: TemplateFile[] = []
   const entries = await fs.readdir(from, { withFileTypes: true })
 
   for (const entry of entries) {
     const source = path.join(from, entry.name)
 
     if (entry.isDirectory()) {
-      written.push(...(await copyTree(source, path.join(to, entry.name), vars)))
+      planned.push(...(await planTemplateDir(source, path.join(to, entry.name))))
       continue
     }
 
     if (!entry.name.endsWith('.tmpl')) continue
 
-    const target = path.join(to, entry.name.slice(0, -'.tmpl'.length))
-    const rendered = renderTemplate(await fs.readFile(source, 'utf8'), vars)
-
-    await fs.outputFile(target, rendered)
-    written.push(target)
+    planned.push({ source, target: path.join(to, entry.name.slice(0, -'.tmpl'.length)) })
   }
 
-  return written
+  return planned
+}
+
+export async function renderFiles(files: TemplateFile[], vars: Record<string, string>): Promise<string[]> {
+  for (const file of files) {
+    await fs.outputFile(file.target, renderTemplate(await fs.readFile(file.source, 'utf8'), vars))
+  }
+
+  return files.map((file) => file.target)
+}
+
+async function copyTree(from: string, to: string, vars: Record<string, string>): Promise<string[]> {
+  return renderFiles(await planTemplateDir(from, to), vars)
 }
 
 export async function scaffold(
@@ -137,21 +159,8 @@ async function write(options: ProjectOptions, onStep?: (step: ScaffoldStep) => v
   const { targetDir, toolchain, pattern, frontend } = options
   const written: string[] = []
 
-  // Solidity sources are shared between toolchains; only the tests differ.
-  written.push(
-    ...(await copyTree(
-      path.join(TEMPLATE_ROOT, 'hardhat', 'patterns', pattern, 'contracts'),
-      path.join(targetDir, 'contracts'),
-      vars,
-    )),
-  )
-  written.push(
-    ...(await copyTree(
-      path.join(TEMPLATE_ROOT, toolchain, 'patterns', pattern, 'test'),
-      path.join(targetDir, 'test'),
-      vars,
-    )),
-  )
+  written.push(...(await copyTree(patternContractsDir(pattern), path.join(targetDir, 'contracts'), vars)))
+  written.push(...(await copyTree(patternTestDir(toolchain, pattern), path.join(targetDir, 'test'), vars)))
   onStep?.('contracts')
 
   written.push(...(await copyTree(path.join(TEMPLATE_ROOT, toolchain, 'base'), targetDir, vars)))
