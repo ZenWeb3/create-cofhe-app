@@ -46,6 +46,7 @@ Run it with no options for the interactive flow.
 | `private-vote`     | One encrypted tally per option, published on-chain when voting closes           |
 | `encrypted-token`  | Encrypted ERC-20 balances; `FHE.gte` + `FHE.select` instead of an underflow revert |
 | `encrypted-escrow` | Moving an encrypted balance between parties and handing over decryption rights  |
+| `encrypted-crowdfund` | `FHE.gte` against a goal: the outcome is published, the amounts never are |
 
 Each pattern ships with a working test suite — `hardhat test` or `forge test` passes immediately
 after scaffolding, with no testnet or API key.

@@ -11,8 +11,8 @@ First release. Replaces `create-fhenix-dapp`, which scaffolded onto the retired
   (`--toolchain`, `--frontend`, `--pattern`, `--package-manager`, `--no-git`, `--no-install`, `--yes`).
 - Hardhat and Foundry project templates on `@cofhe/sdk` 1.0, `@cofhe/hardhat-plugin` 1.0 and
   `@cofhe/foundry-plugin` 1.0.
-- Five starting patterns, each with a passing test suite: blank, sealed-bid auction, private voting,
-  encrypted ERC-20 token, encrypted escrow.
+- Six starting patterns, each with a passing test suite: blank, sealed-bid auction, private voting,
+  encrypted ERC-20 token, encrypted escrow, encrypted crowdfund.
 - Optional Next.js or Vite frontend with a `useCofhe` hook and a connect / encrypt / decrypt demo.
 - `cofhe doctor` — environment and project check, aware of both toolchains. It also compares
   `@fhenixprotocol/cofhe-contracts` against the exact version `@cofhe/mock-contracts` was built

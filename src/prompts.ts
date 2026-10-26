@@ -4,7 +4,13 @@ import pc from 'picocolors'
 
 export type Toolchain = 'hardhat' | 'foundry'
 export type Frontend = 'nextjs' | 'vite' | 'none'
-export type Pattern = 'blank' | 'sealed-bid' | 'private-vote' | 'encrypted-token' | 'encrypted-escrow'
+export type Pattern =
+  | 'blank'
+  | 'sealed-bid'
+  | 'private-vote'
+  | 'encrypted-token'
+  | 'encrypted-escrow'
+  | 'encrypted-crowdfund'
 export type PackageManager = 'pnpm' | 'npm' | 'yarn'
 
 export interface ProjectOptions {
@@ -35,6 +41,7 @@ export const PATTERN_LABELS: Record<Pattern, string> = {
   'private-vote': 'Private Voting',
   'encrypted-token': 'Encrypted ERC-20 Token',
   'encrypted-escrow': 'Encrypted Escrow',
+  'encrypted-crowdfund': 'Encrypted Crowdfund',
 }
 
 export const PATTERN_CONTRACTS: Record<Pattern, string> = {
@@ -43,6 +50,7 @@ export const PATTERN_CONTRACTS: Record<Pattern, string> = {
   'private-vote': 'PrivateVoting',
   'encrypted-token': 'EncryptedToken',
   'encrypted-escrow': 'EncryptedEscrow',
+  'encrypted-crowdfund': 'EncryptedCrowdfund',
 }
 
 const DEFAULT_NAME = 'my-cofhe-app'

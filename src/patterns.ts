@@ -132,4 +132,25 @@ export const PATTERNS: Record<Pattern, PatternMeta> = {
     readArgs: '[]',
     abi: [fn('deposit', encryptedInput), fn('escrowedAmount', [], handleOutput, 'view')],
   },
+  'encrypted-crowdfund': {
+    label: 'Encrypted Crowdfund',
+    description:
+      'A crowdfunding campaign whose contributions stay encrypted. The running total is compared against the goal with `FHE.gte` while still encrypted, so only the outcome — met or missed — is ever published.',
+    contractName: 'EncryptedCrowdfund',
+    deployArgs: ['1000'],
+    constructorArgs: '1000',
+    solConstructorArgs: '1000',
+    fheType: 'Uint64',
+    encryptableFn: 'uint64',
+    amountLabel: 'Contribution',
+    actionLabel: 'Contribute',
+    writeFn: 'contribute',
+    writeArgs: '[[handle], signature]',
+    readFn: 'contributionOf',
+    readArgs: '[account]',
+    abi: [
+      fn('contribute', encryptedInput),
+      fn('contributionOf', [{ name: 'backer', type: 'address' }], handleOutput, 'view'),
+    ],
+  },
 }

@@ -30,7 +30,8 @@ jobs:
       fail-fast: false
       matrix:
         toolchain: [hardhat, foundry]
-        pattern: [blank, sealed-bid, private-vote, encrypted-token, encrypted-escrow]
+        pattern:
+          [blank, sealed-bid, private-vote, encrypted-token, encrypted-escrow, encrypted-crowdfund]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -79,7 +80,7 @@ jobs:
       - name: Add every other pattern
         working-directory: app
         run: |
-          for pattern in sealed-bid private-vote encrypted-token encrypted-escrow; do
+          for pattern in sealed-bid private-vote encrypted-token encrypted-escrow encrypted-crowdfund; do
             node ../dist/cli.js add "$pattern"
           done
       - name: Install project dependencies

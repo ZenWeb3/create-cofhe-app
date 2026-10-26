@@ -25,6 +25,9 @@ const ALIASES: Record<string, Pattern> = {
   erc20: 'encrypted-token',
   'encrypted-erc20': 'encrypted-token',
   escrow: 'encrypted-escrow',
+  crowdfund: 'encrypted-crowdfund',
+  fundraiser: 'encrypted-crowdfund',
+  campaign: 'encrypted-crowdfund',
 }
 
 export function resolvePattern(input: string): Pattern | undefined {

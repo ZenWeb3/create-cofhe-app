@@ -1,0 +1,149 @@
+import hre from 'hardhat'
+import { expect } from 'chai'
+import { Encryptable, FheTypes, type CofheClient } from '@cofhe/sdk'
+import type { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
+
+describe('EncryptedCrowdfund', () => {
+  const GOAL = 1000n
+
+  let owner: HardhatEthersSigner
+  let alice: HardhatEthersSigner
+  let bob: HardhatEthersSigner
+  let ownerClient: CofheClient
+  let aliceClient: CofheClient
+  let bobClient: CofheClient
+
+  before(async () => {
+    ;[owner, alice, bob] = await hre.ethers.getSigners()
+    ownerClient = await hre.cofhe.createClientWithBatteries(owner)
+    aliceClient = await hre.cofhe.createClientWithBatteries(alice)
+    bobClient = await hre.cofhe.createClientWithBatteries(bob)
+  })
+
+  async function deploy() {
+    const factory = await hre.ethers.getContractFactory('EncryptedCrowdfund', owner)
+    const campaign = await factory.deploy(GOAL)
+    await campaign.waitForDeployment()
+    return campaign
+  }
+
+  async function contribute(client: CofheClient, signer: HardhatEthersSigner, campaign: any, amount: bigint) {
+    const [handle, signature] = await client
+      .encryptInputs([Encryptable.uint64(amount)])
+      .setConsumingContract(await campaign.getAddress())
+      .execute()
+
+    await (await campaign.connect(signer).contribute([handle], signature)).wait()
+  }
+
+  async function publishOutcome(campaign: any) {
+    const { decryptedValue, signature } = await ownerClient
+      .decryptForTx(await campaign.encryptedOutcome())
+      .withoutACP()
+      .execute()
+
+    await (await campaign.publishOutcome(Boolean(decryptedValue), signature)).wait()
+  }
+
+  it('lets a backer read their own contribution', async () => {
+    const campaign = await deploy()
+    await contribute(aliceClient, alice, campaign, 400n)
+
+    const handle = await campaign.contributionOf(alice.address)
+    expect(await aliceClient.decryptForView(handle, FheTypes.Uint64).execute()).to.equal(400n)
+    expect(await campaign.backerCount()).to.equal(1n)
+  })
+
+  it('adds repeat contributions from the same backer', async () => {
+    const campaign = await deploy()
+    await contribute(aliceClient, alice, campaign, 400n)
+    await contribute(aliceClient, alice, campaign, 100n)
+
+    const handle = await campaign.contributionOf(alice.address)
+    expect(await aliceClient.decryptForView(handle, FheTypes.Uint64).execute()).to.equal(500n)
+    expect(await campaign.backerCount()).to.equal(1n)
+  })
+
+  it('hides a contribution from everyone else', async () => {
+    const campaign = await deploy()
+    await contribute(aliceClient, alice, campaign, 400n)
+
+    let error: unknown
+    try {
+      await bobClient.decryptForView(await campaign.contributionOf(alice.address), FheTypes.Uint64).execute()
+    } catch (cause) {
+      error = cause
+    }
+
+    expect(error, "another account must not read alice's contribution").to.not.equal(undefined)
+  })
+
+  it('shows the running total to the owner alone', async () => {
+    const campaign = await deploy()
+    await contribute(aliceClient, alice, campaign, 400n)
+    await contribute(bobClient, bob, campaign, 250n)
+
+    expect(await ownerClient.decryptForView(await campaign.encryptedRaised(), FheTypes.Uint64).execute()).to.equal(650n)
+
+    let error: unknown
+    try {
+      await aliceClient.decryptForView(await campaign.encryptedRaised(), FheTypes.Uint64).execute()
+    } catch (cause) {
+      error = cause
+    }
+
+    expect(error, 'a backer must not read the running total').to.not.equal(undefined)
+  })
+
+  it('publishes that the goal was met without revealing the total', async () => {
+    const campaign = await deploy()
+    await contribute(aliceClient, alice, campaign, 600n)
+    await contribute(bobClient, bob, campaign, 500n)
+
+    await (await campaign.closeCampaign()).wait()
+    await publishOutcome(campaign)
+
+    expect(await campaign.published()).to.equal(true)
+    expect(await campaign.goalReached()).to.equal(true)
+
+    let error: unknown
+    try {
+      await bobClient.decryptForView(await campaign.encryptedRaised(), FheTypes.Uint64).execute()
+    } catch (cause) {
+      error = cause
+    }
+
+    expect(error, 'the total stays private after the outcome is published').to.not.equal(undefined)
+  })
+
+  it('publishes a missed goal the same way', async () => {
+    const campaign = await deploy()
+    await contribute(aliceClient, alice, campaign, 100n)
+
+    await (await campaign.closeCampaign()).wait()
+    await publishOutcome(campaign)
+
+    expect(await campaign.goalReached()).to.equal(false)
+  })
+
+  it('rejects contributions once the campaign is closed', async () => {
+    const campaign = await deploy()
+    await (await campaign.closeCampaign()).wait()
+
+    const [handle, signature] = await aliceClient
+      .encryptInputs([Encryptable.uint64(10n)])
+      .setConsumingContract(await campaign.getAddress())
+      .execute()
+
+    await expect(campaign.connect(alice).contribute([handle], signature)).to.be.revertedWithCustomError(
+      campaign,
+      'CampaignIsClosed',
+    )
+  })
+
+  it('rejects a close from anyone but the owner', async () => {
+    const campaign = await deploy()
+
+    await expect(campaign.connect(alice).closeCampaign()).to.be.revertedWithCustomError(campaign, 'NotOwner')
+  })
+})

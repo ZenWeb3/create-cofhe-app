@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {FHE, ebool, euint64, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+
+/// @notice Crowdfunding where every contribution stays encrypted and only the outcome is published.
+contract EncryptedCrowdfund {
+    event Contributed(address indexed backer);
+    event CampaignClosed();
+    event OutcomePublished(bool goalReached);
+
+    error NotOwner();
+    error ZeroGoal();
+    error CampaignIsClosed();
+    error CampaignIsOpen();
+    error AlreadyPublished();
+
+    address public immutable owner;
+    uint64 public immutable goal;
+
+    bool public closed;
+    bool public published;
+    bool public goalReached;
+    uint256 public backerCount;
+
+    euint64 private raised;
+    ebool private reached;
+    mapping(address => euint64) private contributions;
+    mapping(address => bool) public hasContributed;
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotOwner();
+        _;
+    }
+
+    constructor(uint64 fundingGoal) {
+        if (fundingGoal == 0) revert ZeroGoal();
+
+        owner = msg.sender;
+        goal = fundingGoal;
+
+        raised = FHE.asEuint64(0);
+        FHE.allowThis(raised);
+        FHE.allow(raised, owner);
+    }
+
+    /// @notice Add to the caller's contribution. Only the caller may read their own total.
+    function contribute(externalEuint64[] calldata values, bytes calldata signature) external {
+        if (closed) revert CampaignIsClosed();
+
+        euint64 amount = FHE.asEuint64s(values, signature)[0];
+        euint64 total = hasContributed[msg.sender] ? FHE.add(contributions[msg.sender], amount) : amount;
+
+        if (!hasContributed[msg.sender]) {
+            hasContributed[msg.sender] = true;
+            backerCount += 1;
+        }
+
+        contributions[msg.sender] = total;
+        raised = FHE.add(raised, amount);
+
+        FHE.allowThis(total);
+        FHE.allowSender(total);
+        FHE.allowThis(raised);
+        FHE.allow(raised, owner);
+
+        emit Contributed(msg.sender);
+    }
+
+    /// @notice Compare the encrypted total against the goal. The comparison is itself encrypted.
+    function closeCampaign() external onlyOwner {
+        if (closed) revert CampaignIsClosed();
+
+        closed = true;
+        reached = FHE.gte(raised, FHE.asEuint64(goal));
+
+        FHE.allowThis(reached);
+        FHE.allowGlobal(reached);
+
+        emit CampaignClosed();
+    }
+
+    /// @notice Put the outcome on-chain. Publishing needs a threshold signature from off-chain, so
+    /// the caller decrypts the handle first and hands the signed result back here.
+    function publishOutcome(bool outcome, bytes calldata signature) external {
+        if (!closed) revert CampaignIsOpen();
+        if (published) revert AlreadyPublished();
+
+        FHE.publishDecryptResult(reached, outcome, signature);
+
+        published = true;
+        goalReached = FHE.getDecryptResult(reached);
+
+        emit OutcomePublished(goalReached);
+    }
+
+    function contributionOf(address backer) external view returns (euint64) {
+        return contributions[backer];
+    }
+
+    /// @notice The running total. Only the owner is ever allowed to decrypt it.
+    function encryptedRaised() external view returns (euint64) {
+        return raised;
+    }
+
+    /// @notice Whether the goal was met, readable by anyone once the campaign is closed.
+    function encryptedOutcome() external view returns (ebool) {
+        return reached;
+    }
+}

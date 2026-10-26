@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {CofheTest} from "@cofhe/foundry-plugin/CofheTest.sol";
+import {CofheClient} from "@cofhe/foundry-plugin/CofheClient.sol";
+import {ebool, euint64, externalEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {EncryptedCrowdfund} from "../contracts/EncryptedCrowdfund.sol";
+
+contract EncryptedCrowdfundTest is CofheTest {
+    uint256 private constant ALICE_PKEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+    uint256 private constant BOB_PKEY = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
+    uint64 private constant GOAL = 1000;
+
+    CofheClient private alice;
+    CofheClient private bob;
+    EncryptedCrowdfund private campaign;
+
+    function setUp() public {
+        deployMocks();
+
+        alice = createCofheClient();
+        alice.connect(ALICE_PKEY);
+        bob = createCofheClient();
+        bob.connect(BOB_PKEY);
+
+        campaign = new EncryptedCrowdfund(GOAL);
+    }
+
+    function test_backerContribution() public {
+        _contribute(alice, 400);
+
+        expectPlaintext(campaign.contributionOf(alice.account()), uint64(400));
+        assertEq(campaign.backerCount(), 1);
+        assertTrue(campaign.hasContributed(alice.account()));
+    }
+
+    function test_repeatContributionsAddUp() public {
+        _contribute(alice, 400);
+        _contribute(alice, 100);
+
+        expectPlaintext(campaign.contributionOf(alice.account()), uint64(500));
+        assertEq(campaign.backerCount(), 1);
+    }
+
+    function test_runningTotal() public {
+        _contribute(alice, 400);
+        _contribute(bob, 250);
+
+        expectPlaintext(campaign.encryptedRaised(), uint64(650));
+    }
+
+    function test_publishesMetGoal() public {
+        _contribute(alice, 600);
+        _contribute(bob, 500);
+
+        campaign.closeCampaign();
+        _publishOutcome();
+
+        assertTrue(campaign.published());
+        assertTrue(campaign.goalReached());
+    }
+
+    function test_publishesMissedGoal() public {
+        _contribute(alice, 100);
+
+        campaign.closeCampaign();
+        _publishOutcome();
+
+        assertTrue(campaign.published());
+        assertFalse(campaign.goalReached());
+    }
+
+    function test_rejectsContributionAfterClose() public {
+        campaign.closeCampaign();
+
+        (externalEuint64 handle, bytes memory signature) = alice.createExternalEuint64(10, address(campaign));
+        externalEuint64[] memory handles = new externalEuint64[](1);
+        handles[0] = handle;
+        address backer = alice.account();
+
+        vm.prank(backer);
+        vm.expectRevert(EncryptedCrowdfund.CampaignIsClosed.selector);
+        campaign.contribute(handles, signature);
+    }
+
+    function test_onlyOwnerCanClose() public {
+        address backer = alice.account();
+
+        vm.prank(backer);
+        vm.expectRevert(EncryptedCrowdfund.NotOwner.selector);
+        campaign.closeCampaign();
+    }
+
+    function _contribute(CofheClient client, uint64 amount) private {
+        (externalEuint64 handle, bytes memory signature) = client.createExternalEuint64(amount, address(campaign));
+        externalEuint64[] memory handles = new externalEuint64[](1);
+        handles[0] = handle;
+        address backer = client.account();
+
+        vm.prank(backer);
+        campaign.contribute(handles, signature);
+    }
+
+    function _publishOutcome() private {
+        (, uint256 outcome, bytes memory signature) = alice.decryptForTx_withoutACP(
+            ebool.unwrap(campaign.encryptedOutcome())
+        );
+
+        campaign.publishOutcome(outcome != 0, signature);
+    }
+}
