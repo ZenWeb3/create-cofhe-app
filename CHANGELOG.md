@@ -17,6 +17,8 @@ First release. Replaces `create-fhenix-dapp`, which scaffolded onto the retired
 - `cofhe doctor` — environment and project check, aware of both toolchains. It also compares
   `@fhenixprotocol/cofhe-contracts` against the exact version `@cofhe/mock-contracts` was built
   against, catching both a drifted install and a caret range that will drift on the next one.
+- `cofhe handle <ctHash>` — decodes a ciphertext handle's type and security zone, then reads the
+  chain for its published result, its global allowance and which known addresses may decrypt it.
 - `cofhe explain <concept>` — offline explanations of handles, ACPs, encryption, decryption,
   allowances, FHE, CoFHE, the encrypted types, external inputs and the mock stack.
 - `cofhe add <pattern>` — adds a pattern's contract and test to an existing project, detecting the

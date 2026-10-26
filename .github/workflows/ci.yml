@@ -96,6 +96,17 @@ jobs:
           timeout 120 node -e 'const net=require("net");(function t(){const s=net.connect(8545,"127.0.0.1");s.on("connect",()=>{s.end();process.exit(0)});s.on("error",()=>setTimeout(t,300))})()'
           node ../dist/cli.js deploy EncryptedToken --network localhost
           node -e 'const d=require("./deployments.json");if(!d.localhost.EncryptedToken.address)process.exit(1)'
+      - name: Inspect the total supply handle
+        if: matrix.toolchain == 'hardhat'
+        working-directory: app
+        run: |
+          handle=$(node -e 'const{ethers}=require("ethers");const d=require("./deployments.json");
+            new ethers.JsonRpcProvider("http://127.0.0.1:8545")
+              .call({ to: d.localhost.EncryptedToken.address, data: "0x18160ddd" })
+              .then((h) => console.log(h))')
+          node ../dist/cli.js handle "$handle" --network localhost | tee handle.log
+          grep -q euint64 handle.log
+          grep -q "${handle:0:10}" handle.log
 
   frontend:
     name: ${{ matrix.frontend }} frontend

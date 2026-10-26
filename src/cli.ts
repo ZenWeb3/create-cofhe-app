@@ -5,6 +5,7 @@ import { getVersion, printBanner } from './banner.js'
 import { PATTERN_NAMES, runAdd } from './commands/add.js'
 import { DEFAULT_NETWORK, runDeploy } from './commands/deploy.js'
 import { runDoctor } from './commands/doctor.js'
+import { runHandle } from './commands/handle.js'
 import { explain, listConcepts } from './commands/explain.js'
 import { buildProgram, createApp, optionsToDefaults } from './create.js'
 
@@ -39,6 +40,16 @@ program
   .option('-f, --force', 'overwrite files that already exist')
   .action(async (pattern: string | undefined, opts: { force?: boolean }) => {
     process.exitCode = await runAdd(pattern, { force: Boolean(opts.force) })
+  })
+
+program
+  .command('handle')
+  .description('Inspect a ciphertext handle: its type, whether it is published, and who may decrypt it')
+  .argument('[ctHash]', 'the bytes32 handle a contract stores')
+  .option('-n, --network <network>', 'network name or RPC url (default: arb-sepolia)')
+  .option('-f, --for <addresses...>', 'extra addresses to check access for')
+  .action(async (ctHash: string | undefined, opts: { network?: string; for?: string[] }) => {
+    process.exitCode = await runHandle(ctHash, { network: opts.network, for: opts.for })
   })
 
 program

@@ -141,6 +141,42 @@ The toolchain is detected from `hardhat.config.ts` or `foundry.toml`, so the tes
 Existing files are never overwritten — the command stops and lists them instead. Pass `--force` to
 overwrite anyway. Your deploy script and frontend still point at the contract you scaffolded with.
 
+### `cofhe handle <ctHash>`
+
+Answers the question FHE development keeps raising: *why can't this be decrypted?* Encrypted state
+is a `bytes32` handle, and a decrypt that fails tells you nothing — the access list lives on the
+coprocessor, not in the revert message.
+
+```
+$ npx cofhe handle 0xcf9ae956…c5f90400 --network localhost
+
+  Handle 0xcf9ae956…c5f90400
+
+    type           euint32
+    security zone  0
+    network        localhost http://127.0.0.1:8545
+    task manager   0x0000000000000000000000000000000000005000
+
+  Decryption
+
+    · not published on-chain (no FHE.publishDecryptResult yet)
+    · not globally allowed (no FHE.allowGlobal)
+
+  Access
+
+    ✓ 0x9A676e781A523b5d0C0e43731313A708CB607508  Blank
+    ✗ 0x0B306BF915C4d645ff596e518fAf3F9669b97016  PrivateVoting
+    ✓ 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266  your PRIVATE_KEY
+```
+
+The type and security zone are decoded from the handle itself. Everything else is read from the
+chain, so it needs no key — only `eth_call`. The addresses checked are the contracts in
+`deployments.json`, the account behind `PRIVATE_KEY`, and anything passed with `--for`. When nothing
+has access the command says which `FHE.allow` call is missing.
+
+`--network` takes a configured name or an RPC url, the same as `cofhe deploy`. It works against a
+local `hardhat node`, where the mocks stand in for the coprocessor.
+
 ### `cofhe explain <concept>`
 
 Short, offline explanations of the concepts that trip people up:

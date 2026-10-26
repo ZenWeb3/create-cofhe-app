@@ -1,4 +1,6 @@
+import { createRequire } from 'node:module'
 import path from 'node:path'
+import { execa } from 'execa'
 import fs from 'fs-extra'
 import type { PackageManager, Toolchain } from './prompts.js'
 
@@ -89,4 +91,25 @@ export async function upsertEnvVar(file: string, key: string, value: string): Pr
 export function binRunner(pm: PackageManager): string[] {
   if (pm === 'npm') return ['npx', '--no-install']
   return [pm]
+}
+
+/**
+ * Deriving an address from a key needs secp256k1, which the CLI does not depend on — so borrow it
+ * from whatever the project itself already installed.
+ */
+export async function deployerAddress(cwd: string, key: string): Promise<string | undefined> {
+  try {
+    const projectRequire = createRequire(path.join(cwd, 'package.json'))
+    const { Wallet } = projectRequire('ethers') as { Wallet: new (key: string) => { address: string } }
+    return new Wallet(key).address
+  } catch {
+    // Foundry projects have no ethers, but they do have cast.
+  }
+
+  try {
+    const { stdout } = await execa('cast', ['wallet', 'address', '--private-key', key])
+    return stdout.trim()
+  } catch {
+    return undefined
+  }
 }

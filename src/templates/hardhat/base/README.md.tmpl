@@ -114,6 +114,14 @@ The contract converts them with `FHE.asEuint32s(handles, signature)` and must ca
 on anything it stores, plus `FHE.allowSender` or `FHE.allow(handle, account)` for whoever is allowed
 to decrypt it.
 
+When a decrypt fails, the handle itself tells you nothing. Inspect it instead:
+
+```bash
+npx cofhe handle <ctHash> --network arb-sepolia
+```
+
+It decodes the type and reports who is allowed to decrypt it.
+
 ## Links
 
 - CoFHE docs: https://cofhesdk.fhenix.io
