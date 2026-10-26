@@ -8,6 +8,7 @@ import { redactKey, runDeploy } from '../dist/commands/deploy.js'
 import { runAdd } from '../dist/commands/add.js'
 import { detectFrontend, frontendContractName, upsertEnvVar } from '../dist/project.js'
 import { scaffold } from '../dist/scaffold.js'
+import { plain } from './ansi.mjs'
 
 const root = await mkdtemp(path.join(tmpdir(), 'create-cofhe-app-deploy-'))
 after(() => rm(root, { recursive: true, force: true }))
@@ -26,7 +27,7 @@ after(() => {
   console.log = log
 })
 
-const text = () => output.join('\n')
+const text = () => plain(output)
 
 async function project(name, { toolchain = 'hardhat', pattern = 'encrypted-token', frontend = 'none', key } = {}) {
   const targetDir = path.join(root, name)

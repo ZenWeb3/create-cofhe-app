@@ -7,6 +7,7 @@ import path from 'node:path'
 
 import { describeHandle, parseHandle, runHandle } from '../dist/commands/handle.js'
 import { decodeAddress, decodeBool, decodeUint, encodeAddress, encodeUint, resolveRpcUrl } from '../dist/rpc.js'
+import { plain } from './ansi.mjs'
 
 const root = await mkdtemp(path.join(tmpdir(), 'create-cofhe-app-handle-'))
 after(() => rm(root, { recursive: true, force: true }))
@@ -33,7 +34,7 @@ after(() => {
   console.log = log
 })
 
-const text = () => output.join('\n')
+const text = () => plain(output)
 const word = (value) => value.toString(16).padStart(64, '0')
 
 let server
