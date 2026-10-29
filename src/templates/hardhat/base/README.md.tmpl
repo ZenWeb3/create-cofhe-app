@@ -53,7 +53,12 @@ what lets tfhe prove across several wasm threads instead of one.
 ## Hosting the frontend
 
 The page proves in the browser, so the host has to send two headers for tfhe to use a
-multi-threaded wasm pool. Without them everything still works, just with single-threaded proving.
+multi-threaded wasm pool. They are an optimisation, not a requirement: without them the SDK proves
+on a single thread instead of failing, which its own benchmark puts at roughly 5x slower.
+
+The page itself reports which mode it got, and the SDK logs it too — look for
+`[Worker] TFHE initialized` in the browser console to see the thread count or the reason it fell
+back.
 
 ```
 Cross-Origin-Opener-Policy: same-origin
