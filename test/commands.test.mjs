@@ -272,3 +272,49 @@ test('doctor skips the pin check when the mocks declare a range', async () => {
   await runDoctor(cwd)
   assert.doesNotMatch(plain(output), /mock-contracts/)
 })
+
+async function frontendProject(name, frontend) {
+  const targetDir = path.join(root, name)
+  await scaffold({
+    projectName: name,
+    targetDir,
+    toolchain: 'hardhat',
+    frontend,
+    pattern: 'blank',
+    packageManager: 'pnpm',
+    git: false,
+    install: false,
+  })
+  return targetDir
+}
+
+test('doctor accepts a next frontend that keeps the webpack flag', async () => {
+  const cwd = await frontendProject('bundler-ok', 'nextjs')
+
+  await runDoctor(cwd)
+  assert.match(plain(output), /frontend builds with --webpack/)
+})
+
+test('doctor catches a next frontend that lost the webpack flag', async () => {
+  const cwd = await frontendProject('bundler-missing', 'nextjs')
+  const manifest = path.join(cwd, 'frontend', 'package.json')
+  const pkg = JSON.parse(await readFile(manifest, 'utf8'))
+
+  pkg.scripts.build = 'next build'
+  pkg.scripts.dev = 'next dev'
+  await writeFile(manifest, JSON.stringify(pkg, null, 2))
+
+  assert.equal(await runDoctor(cwd), 1)
+  const text = plain(output)
+  assert.match(text, /frontend dev and build scripts run next without --webpack/)
+  assert.match(text, /Turbopack never finishes a build that reaches tfhe/)
+})
+
+test('doctor says nothing about bundlers for a vite or absent frontend', async () => {
+  await runDoctor(await frontendProject('bundler-vite', 'vite'))
+  assert.doesNotMatch(plain(output), /webpack/)
+
+  output = []
+  await runDoctor(await frontendProject('bundler-none', 'none'))
+  assert.doesNotMatch(plain(output), /webpack/)
+})

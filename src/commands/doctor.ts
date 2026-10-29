@@ -12,6 +12,7 @@ interface Check {
 interface PackageJson {
   dependencies?: Record<string, string>
   devDependencies?: Record<string, string>
+  scripts?: Record<string, string>
   version?: string
 }
 
@@ -97,6 +98,26 @@ async function checkContractsPin(cwd: string, pkg: PackageJson): Promise<Check |
   }
 
   return { ok: true, label: `${CONTRACTS} matches the ${required} that ${MOCKS} ${mock.version} needs` }
+}
+
+/**
+ * A Turbopack build of a page that reaches tfhe never finishes — no error, no output — so a
+ * frontend that lost the --webpack flag hangs with nothing to go on.
+ */
+async function checkFrontendBundler(cwd: string): Promise<Check | undefined> {
+  const pkg = await readJson<PackageJson>(path.join(cwd, 'frontend', 'package.json'))
+  const scripts = Object.entries(pkg?.scripts ?? {}).filter(([, command]) => /\bnext (build|dev)\b/.test(command))
+
+  if (scripts.length === 0) return undefined
+
+  const missing = scripts.filter(([, command]) => !/--webpack\b/.test(command)).map(([name]) => name)
+  if (missing.length === 0) return { ok: true, label: 'frontend builds with --webpack' }
+
+  return {
+    ok: false,
+    label: `frontend ${missing.join(' and ')} ${missing.length === 1 ? 'script runs' : 'scripts run'} next without --webpack`,
+    fix: 'Turbopack never finishes a build that reaches tfhe — add --webpack',
+  }
 }
 
 async function checkHardhatConfig(cwd: string): Promise<Check> {
@@ -202,6 +223,9 @@ export async function runDoctor(cwd = process.cwd()): Promise<number> {
     if (isFoundry) checks.push(await checkFoundryConfig(cwd))
 
     checks.push(await checkEnv(cwd))
+
+    const bundlerCheck = await checkFrontendBundler(cwd)
+    if (bundlerCheck) checks.push(bundlerCheck)
 
     const typeScriptCheck = await checkTypeScript(cwd, pkg)
     if (typeScriptCheck) checks.push(typeScriptCheck)
